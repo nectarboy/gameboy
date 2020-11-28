@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<title>gb emulator</title>
+		<meta charset='UTF-8'>
+
+		<link rel='stylesheet' href='src/css/index.css'>
+	</head>
+	<body>
+		<div>
+
+			<!-- Elements -->
+			<canvas id='nanacanvas' width='160' height='144'></canvas>
+			<br>
+			<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom'>
+
+			<!-- Scripts -->
+			<script src='src/ops.js'></script>
+			<script src='src/cpu.js'></script>
+			<script src='src/ppu.js'></script>
+			<script src='src/mem.js'></script>
+
+			<script src='src/main.js'></script>
+
+			<script>
+				//window.onload = function () {
+
+					const nanacanvas = document.getElementById ('nanacanvas');
+					const nanafin = document.getElementById ('nanafin');
+
+					const gameboy = new Gameboy (nanacanvas);
+
+					nanafin.onchange = function (evt) {
+						var file = evt.target.files [0];
+						if (!file)
+							return;
+
+						console.log ('file inserted:', file);
+						gameboy.start (file, nanacanvas);
+					};
+
+				//};
+			</script>
+
+		</div>
+	</body>
+
+</html>

@@ -1,0 +1,15 @@
+/* HTML */
+
+/* GAMEBOY */
+
+#nanacanvas {
+	width: 320px;
+
+	image-rendering: pixelated;
+
+	background: #14804c;
+
+	border: 8px solid black;
+	border-bottom-width: 32px;
+	border-radius: 8px;
+}
