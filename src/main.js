@@ -16,9 +16,9 @@ const Gameboy = function () {
 
 		// Restart all components
 		this.cpu = new Cpu (this, rom);
-		this.ppu = new Cpu (this, canvas);
+		this.ppu = new Ppu (this, canvas);
 
-		console.log ('booting rom!', rom);
+		console.log ('booting !');
 
 		this.cpu.loopExe (); // Begin program
 	};
@@ -26,6 +26,8 @@ const Gameboy = function () {
 	this.start = function (file, canvas) {
 		if (!file)
 			throw '(Invalid rom file!)';
+
+		console.log ('loading rom...');
 
 		var fr = new FileReader ();
 		fr.onload = function () {

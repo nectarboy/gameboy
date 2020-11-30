@@ -8,12 +8,24 @@
 		<link rel='stylesheet' href='src/css/index.css'>
 	</head>
 	<body>
-		<div>
+		<div class='outerwrap'>
 
-			<!-- Elements -->
-			<canvas id='nanacanvas' width='160' height='144'></canvas>
-			<br>
-			<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom'>
+			<!-- GameBoy div -->
+			<div class='gbwrap'> 
+
+				<div class='gbtop'>
+					<canvas id='nanacanvas' width='160' height='144'></canvas>
+					<div class='gbsmallgap'></div>
+				</div>
+
+				<div class='gbbiggap'></div>
+
+				<div class='gbbottom'>
+					<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom' class='hide'>
+					<label for='nanafin' class='filebutton'>Choose ROM</label>
+				</div>
+
+			</div>
 
 			<!-- Scripts -->
 			<script src='src/ops.js'></script>
@@ -36,7 +48,6 @@
 						if (!file)
 							return;
 
-						console.log ('file inserted:', file);
 						gameboy.start (file, nanacanvas);
 					};
 

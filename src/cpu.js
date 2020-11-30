@@ -4,10 +4,6 @@ const Cpu = function (nes, rom) {
 
 	// =============== //	Basic Elements //
 
-	// PC and Cycles
-	this.pc = 0x0000; // A placeholder for the bootfirm
-	this.cycles = 0;
-
 	// Emulation
 	this.isdrawing = false;
 
@@ -18,9 +14,19 @@ const Cpu = function (nes, rom) {
 
 	// =============== //	Registers and Flags //
 
+	// Program
+	this.pc = 0x0000; // A placeholder for the bootfirm
+	this.cycles = 0;
+
+	// Stack
+	this.sp = 0xfffe; // Stack pointer (0xfffe is placeholder)
+	this.writeSP = function (addr) {
+		this.sp = addr & 0xffff; // Mask to 16bit int
+	};
+
 	// Registers A-L
 	this.reg = {
-		a: 1, // reg a explicitly set to 1 on boot
+		a: 0,
 		b: 0,
 		c: 0,
 		d: 0,
@@ -29,10 +35,24 @@ const Cpu = function (nes, rom) {
 		h: 0,
 		l: 0
 	};
+	this.reg16 = {
+		af: 0,
+		bc: 0,
+		de: 0,
+		hl: 0
+	};
+
 	this.writeReg = function (r8, val) {
 		return this.reg [r8] = val & 0xff; // Mask to 8bit int
 	};
+	this.writeReg16 = function (r16, val) {
+		this.writeReg (r16 [0], ((val & 0xff00) >> 8)); //  Get high byte
+		this.writeReg (r16 [1], (val & 0xff)); // Get low byte
+		return this.reg16 [r16] = val & 0xffff; // Return 16bit int of val
+	};
 
+	/*
+	 * Deprecated
 	this.reg16 = {
 		getAF () {
 			return this.getReg ('a', 'f');
@@ -65,9 +85,9 @@ const Cpu = function (nes, rom) {
 		writeReg (rx, ry, val) {
 			cpu.writeReg (rx, ((val & 0xff00) >> 8)); //  Get high byte
 			cpu.writeReg (ry, (val & 0xff)); // Get low byte
-			return val;
+			return val & 0xffff;
 		}
-	};
+	};*/
 
 	// Flags
 	this.flag = {
@@ -89,9 +109,6 @@ const Cpu = function (nes, rom) {
 		},
 	};
 
-	this.getFlag = function (flag) {
-		return (flag.on);
-	};
 	this.setFlag = function (flag) {
 		this.reg.f |= flag.mask; // OR with specific bitmask to set a flag
 		return (flag.on = 1);
@@ -173,9 +190,6 @@ const Cpu = function (nes, rom) {
 		var mem = this.mem;
 
 		// ROM //
-		if (addr < 0x100) {
-			return mem.bootrom [addr] = val;
-		}
 		if (addr < 0x8000) {
 			return val;
 		}

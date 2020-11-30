@@ -1,5 +1,79 @@
 /* HTML */
 
+html, body {
+
+}
+
+.hide {
+	display: none;
+}
+
+/* WRAP */
+
+.outerwrap {
+	display: flex;
+	text-align: center;
+	justify-content: center;
+}
+
+.gbwrap {
+	padding: 60px 45px 75px 45px;
+}
+
+.gbsmallgap {
+	padding: 20px;
+}
+
+.gbcontrols {
+	width: 80%;
+}
+
+.gbbiggap {
+	padding: 50px;
+}
+
+.gbtop {
+	top: 0;
+}
+
+.gbbottom {
+	bottom: 0;
+}
+
+/* STYLE */
+
+.roundbutton, .filebutton {
+	display: block;
+	position: relative;
+	width: 50%;
+	height: 40px;
+
+	user-select: none;
+
+	padding: 10px;
+	line-height: 40px;
+
+	text-align: center;
+	color: white;
+
+	background: #DB0062;
+	border: 2px solid #FFB5DC;
+	border-radius: 2px;
+}
+.roundbutton:active, .filebutton:active {
+	background: #FF7091;
+	top: 5px;
+}
+
+.roundbutton {
+	width: 30px;
+	height: 30px;
+
+	line-height: 30px;
+
+	border-radius: 100%;
+}
+
 /* GAMEBOY */
 
 #nanacanvas {
