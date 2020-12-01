@@ -8,17 +8,30 @@
 		<link rel='stylesheet' href='src/css/index.css'>
 	</head>
 	<body>
+
+		<!-- Title -->
+		<div class='titlewrap'>
+			<p class='title'>NaNa GB</p>
+			<p class='description'>A Gameboy Emulator made in JavaScript</p>
+		</div>
+
+		<div class='gbgap'></div>
+
 		<div class='outerwrap'>
 
 			<!-- GameBoy div -->
 			<div class='gbwrap'> 
 
 				<div class='gbtop'>
-					<canvas id='nanacanvas' width='160' height='144'></canvas>
-					<div class='gbsmallgap'></div>
+					<div class='screenwrap'>
+						<canvas id='nanacanvas' width='160' height='144'></canvas>
+						<div class='center_flex_div'>
+							<img src='src/img/gb_logo.png' class='gb_logo' draggable='false'>
+						</div>
+					</div>
 				</div>
 
-				<div class='gbbiggap'></div>
+				<div class='gbgap'></div>
 
 				<div class='gbbottom'>
 					<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom' class='hide'>
@@ -55,6 +68,15 @@
 			</script>
 
 		</div>
+
+		<!-- Footer -->
+		<div class='gbgap'></div>
+
+		<div class='footwrap'>
+			<p class='foottitle'>Nectar Boy - 2020</p>
+			<a href='https://github.com/nectarboy/gameboy' class='hidehref'><p class='footdesc'>Source</p></a>
+		</div>
+
 	</body>
 
 </html>

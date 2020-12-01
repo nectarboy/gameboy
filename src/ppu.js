@@ -17,7 +17,7 @@ const Ppu = function (nes, canvas) {
 	// Canvas context
 	this.ctx = canvas.getContext ('2d');
 
-	this.ctx.fillStyle = '#003973';
+	this.ctx.fillStyle = this.pallete [3];
 	this.ctx.fillRect (0, 0, this.gbwidth, this.gbheight);
 
 };

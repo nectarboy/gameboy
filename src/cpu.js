@@ -20,8 +20,25 @@ const Cpu = function (nes, rom) {
 
 	// Stack
 	this.sp = 0xfffe; // Stack pointer (0xfffe is placeholder)
+
 	this.writeSP = function (addr) {
 		this.sp = addr & 0xffff; // Mask to 16bit int
+	};
+	this.pushSP = function (val) {
+		this.writeSP (this.sp - 1);
+		cpu.writeByte (this.sp, (val & 0xff00) >> 8); // Hi byte
+		this.writeSP (this.sp - 1);
+		cpu.writeByte (this.sp, val & 0xff); // Lo byte
+
+		return val & 0xffff; // Mask to 16bit int
+	};
+	this.popSP = function () {
+		this.writeSP (this.sp + 1);
+		var lo = cpu.readByte (this.sp); // Lo byte
+		this.writeSP (this.sp + 1);
+		var hi = cpu.readByte (this.sp); // Hi byte
+
+		return hi | lo; // Combine lo and hi together
 	};
 
 	// Registers A-L
@@ -135,6 +152,8 @@ const Cpu = function (nes, rom) {
 	this.readByte = function (addr) {
 		var mem = this.mem;
 
+		addr = addr & 0xffff; // Mask to 16bit int
+
 		// ROM //
 		if (this.bootromAtm && addr < 0x100) {
 			return mem.bootrom [addr];
@@ -180,14 +199,13 @@ const Cpu = function (nes, rom) {
 			return mem.hram [addr - 0xff80];
 		}
 		// INTERRUPT
-		if (addr === 0xffff) {
-			return mem.iereg;
-		}
-
-		return 0xff; // this shouldn't happen but ummm,,, take this shit instead ig
+		return mem.iereg;
 	};
 	this.writeByte = function (addr, val) {
 		var mem = this.mem;
+
+		addr = addr & 0xffff; // Mask to 16bit int
+		val = val & 0xff; // Mask to 8bit int
 
 		// ROM //
 		if (addr < 0x8000) {
@@ -229,10 +247,21 @@ const Cpu = function (nes, rom) {
 		}
 		// INTERRUPT
 		if (addr === 0xffff) {
-			return mem.iereg = val & 0xff;
+			return mem.iereg = val;
 		}
 
 		return val; // default,,, i guess,,,
+	};
+
+	this.read16 = function (addr) {
+		var hi = this.readByte (addr); //  Get high byte
+		var lo = this.readByte (addr + 1); //  Get low byte
+		return (hi << 8) | lo;
+	};
+	this.write16 = function (addr, val) {
+		cpu.writeByte (addr, ((val & 0xff00) >> 8)); //  Get high byte
+		cpu.writeByte (addr + 1, (val & 0xff)); // Get low byte
+		return val;
 	};
 
 	// =============== //	Basic Functions //

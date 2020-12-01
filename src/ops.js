@@ -41,6 +41,19 @@ const Ops = function (cpu) {
 			return cpu.clearFlag (flag.car);
 	};
 
+	this.checkSubCar = function (a, b) {
+		if (a < b)
+			return cpu.setFlag (flag.car);
+		else
+			return cpu.clearFlag (flag.car);
+	};
+	this.checkSubHcar = function (a, b) {
+		if ((a & 0xf) < (b & 0xf))
+			return cpu.setFlag (flag.hcar);
+		else
+			return cpu.clearFlag (flag.hcar);
+	};
+
 	// =============== //	Instructions //
 
 	this.INS = {
@@ -86,7 +99,7 @@ const Ops = function (cpu) {
 			ops.checkHcar (byte, reg.a);
 
 			cpu.cycles += 2;
-			cpu.pc ++; // Inc pc once more for 2 incs
+			cpu.pc += 1; // Inc pc once more for 2 incs
 		},
 
 		ADD_a_r8: function (r8) {
@@ -103,7 +116,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 1;
 		},
 		ADD_a_hl: function () {
-			var byte = cpu.readByte (reg16.getHL ());
+			var byte = cpu.readByte (reg16.hl);
 			ops.checkHcar (byte, reg.a);
 
 			var sum = byte + reg.a;
@@ -129,7 +142,7 @@ const Ops = function (cpu) {
 			ops.checkCar (sum);
 
 			cpu.cycles += 2;
-			cpu.pc ++; // Inc pc once more for 2 incs
+			cpu.pc += 1;
 		},
 
 		ADD_hl_r16: function (r16) {
@@ -171,7 +184,7 @@ const Ops = function (cpu) {
 			ops.checkCar (sum);
 
 			cpu.cycles += 4;
-			cpu.pc ++;
+			cpu.pc += 1;
 		},
 
 		AND_a_r8: function () {
@@ -185,7 +198,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 1;
 		},
 		AND_a_hl: function (r8) {
-			var byte = cpu.readByte (reg.hl);
+			var byte = cpu.readByte (reg16.hl);
 			var res = cpu.writeReg ('a', byte & reg.a);
 
 			ops.checkZero (res);
@@ -205,8 +218,73 @@ const Ops = function (cpu) {
 			cpu.clearFlag (flag.car);
 
 			cpu.cycles += 2;
-			cpu.pc ++;
+			cpu.pc += 1;
 		},
+
+		BIT_u3_r8: function (r8) {
+			var bitmask = 1 << (cpu.readByte (cpu.pc + 1)); // Byte after opcode
+
+			ops.checkZero (reg [r8] & bitmask);
+			cpu.clearFlag (flag.sub);
+			cpu.setFlag (flag.hcar);
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+		BIT_u3_r8: function () {
+			var byte = cpu.readByte (reg16.hl);
+			var bitmask = 1 << (cpu.readByte (cpu.pc + 1)); // Byte after opcode
+
+			ops.checkZero (byte & bitmask);
+			cpu.clearFlag (flag.sub);
+			cpu.setFlag (flag.hcar);
+
+			cpu.cycles += 3;
+			cpu.pc += 1;
+		},
+		
+		CALL_n16: function () {
+			// Get full address from instruction
+			var fulladdr = (
+				((cpu.readByte (cpu.pc + 1) && 0xff00) << 8)
+				|
+				(cpu.readByte (cpu.pc + 2))
+			);
+
+			cpu.pushSP (fulladdr); // Push the first addr into the stack
+
+			cpu.cycles += 6;
+			cpu.pc += 2;
+		},
+		CALL_cc_n16: function () {
+			if (flag.car.on)
+				return this.CALL_n16 ();
+
+			cpu.cycles += 3;
+			cpu.pc += 2;
+		},
+
+		CCF: function () {
+			// Invert carry flag
+			if (flag.car.on)
+				cpu.clearFlag (flag.car);
+			else
+				cpu.setFlag (flag.car);
+
+			cpu.clearFlag (flag.sub);
+			cpu.clearFlag (flag.hcar);
+
+			cpu.cycles += 1;
+		},
+
+		CP_a_r8: function (r8) {
+			var sum = reg.a - reg [r8];
+			var res = sum & 0xff;
+
+			cpu.setFlag (flag.sub);
+
+			cpu.cycles += 1;
+		}
 
 	};
 
