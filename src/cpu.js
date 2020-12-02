@@ -4,11 +4,10 @@ const Cpu = function (nes, rom) {
 
 	// =============== //	Basic Elements //
 
-	// Emulation
-	this.isdrawing = false;
-
-	// Misc Flags
+	// Basic Flags
 	this.bootromAtm = true;
+	this.running = true;
+
 	this.rombank = 1;
 	this.rambank = 1;
 
@@ -135,6 +134,8 @@ const Cpu = function (nes, rom) {
 		return (flag.on = 0);
 	};
 
+	this.ime = 0; // Interrupt Master Flag - off by default
+
 	// =============== // 	Memory //
 
 	this.mem = new Mem (nes, rom);
@@ -166,8 +167,6 @@ const Cpu = function (nes, rom) {
 		}
 		// VIDEO //
 		if (addr < 0xa000) {
-			if (this.isdrawing)
-				return 0xff;
 			return mem.vram [addr - 0x8000];
 		}
 		// WORK //
@@ -182,8 +181,6 @@ const Cpu = function (nes, rom) {
 		}
 		// VIDEO (oam) //
 		if (addr < 0xfea0) {
-			if (this.isdrawing)
-				return 0xff;
 			return mem.oam [addr - 0xfe00];
 		} else
 		// UNUSED //
@@ -210,11 +207,10 @@ const Cpu = function (nes, rom) {
 		// ROM //
 		if (addr < 0x8000) {
 			return val;
+			// MBC control WIP
 		}
 		// VIDEO //
 		if (addr < 0xa000) {
-			if (this.isdrawing)
-				return val;
 			return mem.vram [addr - 0x8000] = val;
 		}
 		// WORK //
@@ -229,8 +225,6 @@ const Cpu = function (nes, rom) {
 		}
 		// VIDEO (oam) //
 		if (addr < 0xfea0) {
-			if (this.isdrawing)
-				return val;
 			return mem.oam [addr - 0xfe00] = val;
 		}
 		// UNUSED //
@@ -246,11 +240,8 @@ const Cpu = function (nes, rom) {
 			return mem.hram [addr - 0xff80] = val;
 		}
 		// INTERRUPT
-		if (addr === 0xffff) {
-			return mem.iereg = val;
-		}
-
-		return val; // default,,, i guess,,,
+		this.ime = val;
+		return mem.iereg = val;
 	};
 
 	this.read16 = function (addr) {
@@ -268,12 +259,18 @@ const Cpu = function (nes, rom) {
 
 	this.currentTimeout = null;
 
-	this.stepProgram = function () {
-		this.pc ++;
+	this.step = function () {
+		if (this.running) {
+
+			this.ops.exeIns ();
+			nes.ppu.renderImg ();
+
+			this.pc ++;
+		}
 	};
 
 	this.loopExe = function () {
-		this.stepProgram ();
+		this.step ();
 
 		this.currentTimeout = setTimeout (() => {
 			cpu.loopExe (); // Continue program loop

@@ -244,14 +244,10 @@ const Ops = function (cpu) {
 		},
 		
 		CALL_n16: function () {
-			// Get full address from instruction
-			var fulladdr = (
-				((cpu.readByte (cpu.pc + 1) && 0xff00) << 8)
-				|
-				(cpu.readByte (cpu.pc + 2))
-			);
+			var fulladdr = cpu.read16 (cpu.pc + 1); // Get full address from instruction
 
 			cpu.pushSP (fulladdr); // Push the first addr into the stack
+			this.JP_n16 ();
 
 			cpu.cycles += 6;
 			cpu.pc += 2;
@@ -278,14 +274,247 @@ const Ops = function (cpu) {
 		},
 
 		CP_a_r8: function (r8) {
-			var sum = reg.a - reg [r8];
-			var res = sum & 0xff;
+			var res = (reg.a - reg [r8]) & 0xff;
 
+			ops.checkZero (res);
 			cpu.setFlag (flag.sub);
+			ops.checkSubHcar (res, reg [r8]);
+			ops.checkSubCar (res, reg [r8]);
 
+			cpu.cycles += 1;
+		},
+		CP_a_hl: function () {
+			var byte = cpu.readByte (reg16.hl)
+			var res = (reg.a - byte) & 0xff;
+
+			ops.checkZero (res);
+			cpu.setFlag (flag.sub);
+			ops.checkSubHcar (res, reg [r8]);
+			ops.checkSubCar (res, reg [r8]);
+
+			cpu.cycles += 2;
+		},
+		CP_a_n8: function () {
+			var byte = cpu.readByte (cpu.pc + 1);
+			var res = (reg.a - byte) & 0xff;
+
+			ops.checkZero (res);
+			cpu.setFlag (flag.sub);
+			ops.checkSubHcar (res, reg [r8]);
+			ops.checkSubCar (res, reg [r8]);
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+
+		CPL: function () {
+			cpu.writeReg ('a', ~reg.a);
+
+			cpu.cycles += 1;
+		},
+
+		DAA: function () {
+			// WIP
+			cpu.cycles += 1;
+		},
+
+		DEC_r8: function (r8) {
+			var res = cpu.writeReg (r8, reg [r8] - 1);
+
+			ops.checkZero (res);
+			cpu.setFlag (flag.sub);
+			ops.checkSubHcar (res, reg [r8]);
+
+			cpu.cycles += 1;
+		},
+		DEC_hl: function (r8) {
+			var byte = cpu.readByte (reg16.hl);
+			var res = cpu.writeByte (reg16.hl, byte - 1);
+
+			ops.checkZero (res);
+			cpu.setFlag (flag.sub);
+			ops.checkSubHcar (res, byte);
+
+			cpu.cycles += 3;
+		},
+		DEC_r16: function (r16) {
+			cpu.writeReg16 (r16, reg16 [r16] - 1);
+
+			cpu.cycles += 2;
+		},
+		DEC_sp: function () {
+			cpu.writeSP (cpu.sp - 1);
+
+			cpu.cycles += 2;
+		},
+
+		DI: function () {
+			cpu.ime = cpu.writeByte (0xffff, 0); // Disable ie located at 0xffff
+
+			cpu.cycles += 1;
+		},
+		EI: function () {
+			cpu.ime = cpu.writeByte (0xffff, 1); // Enable ie located at 0xffff
+
+			cpu.cycles += 1;
+		},
+
+		HALT: function () {
+			cpu.running = false; // Halt execution until interrupt
+
+			// If IME is enabled: after an interrupt has
+			// occured, continue execution, else if IME
+			// is disabled: when an interrupt is about
+			// to occur, continue execution. Do this when
+			// you handle interrupts !!!
+		},
+
+		INC_r8: function (r8) {
+			var sum = reg [r8] + 1;
+			ops.checkHcar (reg [r8], sum);
+
+			var res = cpu.writeReg (r8, sum);
+
+			ops.checkZero (res);
+			cpu.clearFlag (flag.sub);
+
+			cpu.cycles += 1;
+		},
+		INC_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+			var sum = byte + 1;
+			ops.checkHcar (byte, sum);
+
+			var res = cpu.writeByte (reg16.hl, sum);
+
+			ops.checkZero (res);
+			cpu.clearFlag (flag.sub);
+
+			cpu.cycles += 3;
+		},
+		INC_r16: function (r16) {
+			cpu.writeByte (reg16 [r16], reg16 [r16] + 1);
+
+			cpu.cycles += 2;
+		},
+		INC_sp: function () {
+			cpu.writeSP (cpu.sp, cpu.sp + 1);
+
+			cpu.cycles += 2;
+		},
+
+		JP_n16: function () {
+			var addr = cpu.read16 (cpu.pc + 1);
+
+			cpu.cycles += 4;
+			cpu.pc = addr - 1; // Sub 1 because it increments later, which we aint want
+		},
+		JP_cc_n16: function () {
+			if (flag.car.on)
+				return this.JP_n16 ();
+
+			cpu.cycles += 3; // Untaken
+			cpu.pc += 2;
+		},
+		JP_hl: function () {
+			cpu.pc = reg16.hl - 1; // Sub 1 because it increments later, which we aint want
+		},
+
+		JR_e8: function () {
+			var e8 = cpu.readByte (cpu.pc + 1) - 128;
+
+			cpu.pc += e8;
+
+			cpu.cycles += 3;
+			cpu.pc += 1;
+		},
+		JR_cc_e8: function () {
+			if (flag.car.on)
+				return this.JR_e8 ();
+
+			cpu.cycles += 2; // Untaken
+			cpu.pc += 1;
+		},
+
+		LD_r8_r8: function (rx, ry) {
+			cpu.writeReg (rx, reg [ry]);
+
+			cpu.cycles += 1;
+		},
+		LD_r8_n8: function (r8) {
+			var byte = cpu.readByte (cpu.pc + 1);
+			cpu.writeReg (r8, byte);
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+		LD_r16_n16: function (r16) {
+			var chunk = cpu.read16 (cpu.pc + 1);
+			cpu.writeReg16 (r16, chunk);
+
+			cpu.cycles += 3;
+			cpu.pc += 2;
+		},
+		LD_hl_r8: function (r8) {
+			cpu.writeByte (reg16.hl, reg [r8]);
+
+			cpu.cycles += 2;
+		},
+		LD_hl_n8: function () {
+			var byte = cpu.readByte (cpu.pc + 1);
+			cpu.writeByte (reg16.hl, byte);
+
+			cpu.cycles += 3;
+			cpu.pc += 1;
+		},
+		LD_r8_hl: function (r8) {
+			var byte = cpu.readByte (reg16.hl);
+			cpu.writeReg (r8, byte);
+
+			cpu.cycles += 2;
+		},
+		LD_r16_a: function (r16) {
+			cpu.write16 (reg16 [r16], reg.a);
+
+			cpu.cycles += 2;
+		},
+		LD_n16_a: function () {
+			var chunk = cpu.read16 (cpu.pc + 1);
+			cpu.write16 (chunk, reg.a);
+
+			cpu.cycles += 4;
+			cpu.pc += 2;
+		},
+
+		NOP: function () {
 			cpu.cycles += 1;
 		}
 
 	};
+
+	this.exeIns = function () {
+		var opcode = cpu.readByte (cpu.pc);
+
+		switch (opcode) {
+			// NOP
+			case 0x00: {
+				this.INS.NOP ();
+				break;
+			}
+			// LD BC n16
+			case 0x01: {
+				this.INS.LD_r16_n16 ('bc');
+				break;
+			}
+			// PANIC PANIC PANIC PANIC PANIC !!!
+			default: {
+				console.log (
+					'INVop\n' +
+					'OP:', opcode.toString (16),
+					'\nPC:', cpu.pc.toString (16)
+				);
+			}
+		}
+	}
 
 };

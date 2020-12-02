@@ -12,12 +12,12 @@ html, body {
 }
 
 @font-face {
-	font-family: pixel;
-	src: url(pixel.ttf);
+	font-family: slb; /* The font is called super legend boy */
+	src: url(slb.ttf);
 }
 
 * {
-	font-family: pixel;
+	font-family: slb;
 }
 
 /* TITLE */
@@ -82,6 +82,8 @@ html, body {
 	display: block;
 	position: relative;
 
+	top: 0;
+
 	width: 40%;
 	height: 20px;
 
@@ -92,6 +94,8 @@ html, body {
 
 	text-align: center;
 	color: #DEC69C;
+
+	transition: 0.07s linear top;
 
 	background: none;
 	border: 1px solid #A55AFF;
@@ -120,7 +124,7 @@ html, body {
 	height: 320px;
 
 	border: 1px solid #942994;
-	border-radius: 8px;
+	border-radius: 8px 8px 24px 8px;
 }
 
 #nanacanvas {
@@ -171,7 +175,7 @@ html, body {
 	font-size: 18px;
 }
 
-.footdesc {
+.footsrc {
 	display: inline;
 	font-size: 15px;
 
@@ -183,7 +187,7 @@ html, body {
 
 	user-select: none;
 }
-.footdesc:active {
+.footsrc:active {
 	border: 1px solid white;
 	background: #942994;
 	color: white;
