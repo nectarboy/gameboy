@@ -14,9 +14,9 @@ const Mem = function (nes, rom) {
 	this.vram = new Uint8Array (0x2000); // 8KB of video ram
 
 	// Cartram - 0xa000 - 0xbfff
-	this.cartram = new Uint8Array (0x2000); // Switchable ram found in cart
+	this.cartram = new Uint8Array (0x2000); // 8kb switchable ram found in cart
 	// Work ram - 0xc000 - 0xdfff
-	this.wram = new Uint8Array (0x2000); // 2KB of ram to work with
+	this.wram = new Uint8Array (0x2000); // 8KB of ram to work with
 
 	// (mirror memory of 0xc000) - 0xe000 - 0xfdff
 

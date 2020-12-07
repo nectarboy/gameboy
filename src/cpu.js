@@ -37,7 +37,7 @@ const Cpu = function (nes, rom) {
 		this.writeSP (this.sp + 1);
 		var hi = cpu.readByte (this.sp); // Hi byte
 
-		return hi | lo; // Combine lo and hi together
+		return (hi << 8) | lo; // Combine lo and hi together
 	};
 
 	// Registers A-L
@@ -67,74 +67,16 @@ const Cpu = function (nes, rom) {
 		return this.reg16 [r16] = val & 0xffff; // Return 16bit int of val
 	};
 
-	/*
-	 * Deprecated
-	this.reg16 = {
-		getAF () {
-			return this.getReg ('a', 'f');
-		},
-		writeAF (val) {
-			return this.writeReg ('a', 'f', val);
-		},
-		getBC () {
-			return this.getReg ('b', 'c');
-		},
-		writeBC (val) {
-			return this.writeReg ('b', 'c', val);
-		},
-		getDE () {
-			return this.getReg ('d', 'e');
-		},
-		writeDE (val) {
-			return this.writeReg ('d', 'e', val);
-		},
-		getHL () {
-			return this.getReg ('h', 'l');
-		},
-		writeHL (val) {
-			return this.writeReg ('h', 'l', val);
-		},
-
-		getReg (rx, ry) {
-			return ((cpu.reg [rx] << 8) | cpu.reg [ry]); // Combine 2 8bit to 1 16bit
-		},
-		writeReg (rx, ry, val) {
-			cpu.writeReg (rx, ((val & 0xff00) >> 8)); //  Get high byte
-			cpu.writeReg (ry, (val & 0xff)); // Get low byte
-			return val & 0xffff;
-		}
-	};*/
-
 	// Flags
 	this.flag = {
-		zero: {
-			on: 0,
-			mask: 1 << 7 // 7th bit in F reg
-		},
-		sub: {
-			on: 0,
-			mask: 1 << 6 // 6th bit in F reg
-		},
-		hcar: {
-			on: 0,
-			mask: 1 << 5 // 5th bit in F reg
-		},
-		car: {
-			on: 0,
-			mask: 1 << 4 // 4th bit in F reg
-		},
+		zero: false,
+		sub: false,
+		hcar: false,
+		car: false
 	};
 
-	this.setFlag = function (flag) {
-		this.reg.f |= flag.mask; // OR with specific bitmask to set a flag
-		return (flag.on = 1);
-	};
-	this.clearFlag = function (flag) {
-		this.reg.f &= (~flag.mask & 0xff); // AND with reversed bitmask to clear a flag
-		return (flag.on = 0);
-	};
-
-	this.ime = 0; // Interrupt Master Flag - off by default
+	// Interrupt Master Flag
+	this.ime = 0; // Off by default
 
 	// =============== // 	Memory //
 
@@ -247,12 +189,20 @@ const Cpu = function (nes, rom) {
 	this.read16 = function (addr) {
 		var hi = this.readByte (addr); //  Get high byte
 		var lo = this.readByte (addr + 1); //  Get low byte
-		return (hi << 8) | lo;
+
+		return (hi << 8) | lo; // Mask to 16bit int
 	};
-	this.write16 = function (addr, val) {
+	/*this.write16 = function (addr, val) {
 		cpu.writeByte (addr, ((val & 0xff00) >> 8)); //  Get high byte
 		cpu.writeByte (addr + 1, (val & 0xff)); // Get low byte
-		return val;
+
+		return val & 0xffff;
+	};*/
+	this.write16 = function (addr, val) {
+		cpu.writeByte (addr, (val & 0xff)); // Get low byte
+		cpu.writeByte (addr + 1, ((val & 0xff00) >> 8)); //  Get high byte
+
+		return val & 0xffff;
 	};
 
 	// =============== //	Basic Functions //
@@ -262,7 +212,9 @@ const Cpu = function (nes, rom) {
 	this.step = function () {
 		if (this.running) {
 
-			this.ops.exeIns ();
+			var opcode = cpu.readByte (this.pc);
+			this.ops.exeIns (opcode);
+
 			nes.ppu.renderImg ();
 
 			this.pc ++;

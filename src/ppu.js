@@ -43,6 +43,8 @@ const Ppu = function (nes, canvas) {
 		img [ind + 3] = 0xff; // Full opacity
 	};
 
+	this.thing = 0;
+
 	this.renderImg = function () {
 		this.ctx.putImageData (this.img, 0, 0);
 	};
