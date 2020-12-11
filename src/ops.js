@@ -830,7 +830,72 @@ const Ops = function (cpu) {
 			this.JP_n16 ();
 
 			// cpu.cycles += 0; (jump cycles are 4, == to rst cycles)
-		}
+		},
+
+		SBC_a_r8: function (r8) {
+			var byte = (reg [r8] + flag.car) & 0xff;
+
+			var res = cpu.writeReg ('a', reg.a - byte);
+
+			ops.checkZero (res);
+			flag.sub = true;
+			ops.checkSubHcar (res, byte); 
+			ops.checkSubCar (res, byte);
+
+			cpu.cycles += 1;
+		},
+		SBC_a_hl: function () {
+			var byte = (cpu.readByte (reg16.hl) + flag.car) & 0xff;
+
+			var res = cpu.writeReg ('a', reg.a - byte);
+
+			ops.checkZero (res);
+			flag.sub = true;
+			ops.checkSubHcar (res, byte); 
+			ops.checkSubCar (res, byte);
+
+			cpu.cycles += 2;
+		},
+		SBC_a_n8: function () {
+			var byte = (cpu.readByte (cpu.pc + 1) + flag.car) & 0xff;
+
+			var res = cpu.writeReg ('a', reg.a - byte);
+
+			ops.checkZero (res);
+			flag.sub = true;
+			ops.checkSubHcar (res, byte); 
+			ops.checkSubCar (res, byte);
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+
+		SCF: function () {
+			// Set the carry flag
+			flag.car = true;
+			// Clear some other flags
+			flag.hcar = flag.sub = false;
+
+			cpu.cycles += 1;
+		},
+
+		SET_u3_r8: function (r8) {
+			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+
+			cpu.writeReg (r8, reg [r8] | (1 << u3)); // Set bit u3 in reg r8
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+		SET_u3_hl: function () {
+			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+			var byte = cpu.readByte (reg16.hl); // Get current byte hl
+
+			cpu.writeByte (reg16.hl, byte | (1 << u3)); // Set bit u3 in byte hl
+
+			cpu.cycles += 4;
+			cpu.pc += 1;
+		},
 
 	};
 
