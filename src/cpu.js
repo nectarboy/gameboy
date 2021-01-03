@@ -6,7 +6,10 @@ const Cpu = function (nes, rom) {
 
 	// Basic Flags
 	this.bootromAtm = true;
-	this.running = true;
+
+	this.lowpower = false;
+
+	this.ime = 0; // Off by default
 
 	this.rombank = 1;
 	this.rambank = 1;
@@ -75,9 +78,6 @@ const Cpu = function (nes, rom) {
 		car: false
 	};
 
-	// Interrupt Master Flag
-	this.ime = 0; // Off by default
-
 	// =============== // 	Memory //
 
 	this.mem = new Mem (nes, rom);
@@ -131,6 +131,10 @@ const Cpu = function (nes, rom) {
 		}
 		// IO REG
 		if (addr < 0xff80) {
+			var ioaddr = addr - 0xff00;
+
+			if (!mem.ioonwrite [ioaddr]) // Unmapped mmio
+				return 0xff;
 			return mem.ioreg [addr - 0xff00]; // WIP
 		}
 		// HIGH
@@ -175,7 +179,11 @@ const Cpu = function (nes, rom) {
 		}
 		// IO REG
 		if (addr < 0xff80) {
-			return mem.ioreg [addr - 0xff00] = val; // WIP
+			var ioaddr = addr - 0xff00;
+
+			if (mem.ioonwrite [ioaddr])
+				mem.ioonwrite [ioaddr] (val); // WIP
+			return val;
 		}
 		// HIGH
 		if (addr < 0xffff) {
@@ -210,15 +218,7 @@ const Cpu = function (nes, rom) {
 	this.currentTimeout = null;
 
 	this.step = function () {
-		if (this.running) {
-
-			var opcode = cpu.readByte (this.pc);
-			this.ops.exeIns (opcode);
-
-			nes.ppu.renderImg ();
-
-			this.pc ++;
-		}
+		this.ops.exeIns ();
 	};
 
 	this.loopExe = function () {

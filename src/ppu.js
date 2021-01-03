@@ -2,13 +2,29 @@ const Ppu = function (nes, canvas) {
 
 	var ppu = this;
 
+	this.ctx = canvas.getContext ('2d');
+
 	// =============== //	Basic Elements //
 
-	// Resolution
+	this.hblanking = 
+	this.vblanking = false;
+
+	this.lcdc = {
+		bg_priority: false,
+		sprite_enabled: false,
+		sprite_size: false,
+		bg_tilemap_alt: false,
+		bg_window_start: false,
+		window_enabled: false,
+		window_tilemap_start: false,
+		lcd_enabled: false
+	};
+
+	// =============== //	Screen Elements //
+
 	var gbwidth = 160;
 	var gbheight = 144;
 
-	// Color pallete
 	this.pallete = {
 		0: {
 			r: 0xde, g: 0xc6, b: 0x9c // WHITE
@@ -23,9 +39,6 @@ const Ppu = function (nes, canvas) {
 			r: 0x00, g: 0x39, b: 0x73 // BLACK
 		}
 	};
-
-	// Canvas context
-	this.ctx = canvas.getContext ('2d');
 
 	// =============== //	Canvas Drawing //
 
@@ -42,8 +55,6 @@ const Ppu = function (nes, canvas) {
 		img [ind + 2] = pal.b;
 		img [ind + 3] = 0xff; // Full opacity
 	};
-
-	this.thing = 0;
 
 	this.renderImg = function () {
 		this.ctx.putImageData (this.img, 0, 0);

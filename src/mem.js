@@ -34,6 +34,36 @@ const Mem = function (nes, rom) {
 	// interrupt enable register - 0xffff
 	this.iereg = 0;
 
+	// =============== //	IO Registers //
+
+	this.ioonwrite = {
+		// Div timer
+		[0x04]: function (val) {
+			mem.ioreg [0x04] = 0;
+		},
+
+		// LCDC
+		[0x40]: function (val) {
+			var bits = [];
+			var ppu = nes.ppu;
+
+			for (var i = 0; i < 8; i ++) {
+				bits [i] = (val & (1 << i)) !== 0;
+			}
+
+			ppu.bg_priority = bits [0];
+			ppu.sprite_enabled = bits [1];
+			ppu.sprite_size = bits [2];
+			ppu.bg_tilemap_alt = bits [3];
+			ppu.bg_window_start = bits [4];
+			ppu.window_enabled = bits [5];
+			ppu.window_tilemap_start = bits [6];
+			ppu.lcd_enabled = bits [7];
+
+			mem.ioreg [0x40] = val;
+		}
+	};
+
 	// =============== //	Rom Properties //
 
 	// Cart Name

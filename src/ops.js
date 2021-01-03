@@ -35,10 +35,10 @@ const Ops = function (cpu) {
 
 	// Byte Rotations //
 	this.rotLeft = function (n) {
-		return (n << d) | (n >> 7); 
+		return (n << 1) | (n >> 7); 
 	};
 	this.rotRight = function (n) {
-		return (n >> d) | (n << 7); 
+		return (n >> 1) | (n << 7); 
 	};
 
 	// =============== //	Instructions //
@@ -73,7 +73,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		ADC_a_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1); // Byte after opcode
+			var byte = cpu.readByte (cpu.pc); // Byte after opcode
 			ops.checkHcar (byte, reg.a);
 
 			var sum = byte + reg.a;
@@ -117,7 +117,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		ADD_a_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1); // Byte after opcode
+			var byte = cpu.readByte (cpu.pc); // Byte after opcode
 			ops.checkHcar (byte, reg.a);
 
 			var sum = byte + reg.a;
@@ -159,7 +159,7 @@ const Ops = function (cpu) {
 		},
 
 		ADD_sp_e8: function () {
-			var e8 = cpu.readByte (cpu.pc + 1) - 128; // Byte after opcode
+			var e8 = cpu.readByte (cpu.pc) - 128; // Byte after opcode
 			ops.checkHcar (e8, cpu.sp);
 
 			var sum = e8 + cpu.sp;
@@ -196,7 +196,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		AND_a_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1); // Byte after opcode
+			var byte = cpu.readByte (cpu.pc); // Byte after opcode
 			var res = cpu.writeReg ('a', byte & reg.a);
 
 			ops.checkZero (res);
@@ -209,7 +209,7 @@ const Ops = function (cpu) {
 		},
 
 		BIT_u3_r8: function (r8) {
-			var bitmask = 1 << (cpu.readByte (cpu.pc + 1)); // Byte after opcode
+			var bitmask = 1 << (cpu.readByte (cpu.pc)); // Byte after opcode
 
 			ops.checkZero (reg [r8] & bitmask);
 			flag.sub = false;
@@ -220,7 +220,7 @@ const Ops = function (cpu) {
 		},
 		BIT_u3_r8: function () {
 			var byte = cpu.readByte (reg16.hl);
-			var bitmask = 1 << (cpu.readByte (cpu.pc + 1)); // Byte after opcode
+			var bitmask = 1 << (cpu.readByte (cpu.pc)); // Byte after opcode
 
 			ops.checkZero (byte & bitmask);
 			flag.sub = false;
@@ -231,7 +231,7 @@ const Ops = function (cpu) {
 		},
 		
 		CALL_n16: function () {
-			var fulladdr = cpu.read16 (cpu.pc + 1); // Get full address from instruction
+			var fulladdr = cpu.read16 (cpu.pc); // Get full address from instruction
 
 			cpu.pushSP (fulladdr); // Push the first addr into the stack
 			this.JP_n16 ();
@@ -278,7 +278,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		CP_a_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1);
+			var byte = cpu.readByte (cpu.pc);
 			var res = (reg.a - byte) & 0xff;
 
 			ops.checkZero (res);
@@ -291,7 +291,7 @@ const Ops = function (cpu) {
 		},
 
 		CPL: function () {
-			cpu.writeReg ('a', ~reg.a);
+			cpu.writeReg ('a', reg.a ^ 0xff); // Invert bits
 
 			cpu.cycles += 1;
 		},
@@ -332,12 +332,12 @@ const Ops = function (cpu) {
 		},
 
 		DI: function () {
-			cpu.ime = cpu.writeByte (0xffff, 0); // Disable ie located at 0xffff
+			cpu.ime = false; // Disable all interrupts
 
 			cpu.cycles += 1;
 		},
 		EI: function () {
-			cpu.ime = cpu.writeByte (0xffff, 1); // Enable ie located at 0xffff
+			cpu.ime = true; // Enable all interrupts
 
 			cpu.cycles += 1;
 		},
@@ -387,7 +387,7 @@ const Ops = function (cpu) {
 		},
 
 		JP_n16: function () {
-			var addr = cpu.read16 (cpu.pc + 1);
+			var addr = cpu.read16 (cpu.pc);
 
 			cpu.cycles += 4;
 			cpu.pc = addr - 1; // Sub 1 because it increments later, which we aint want
@@ -404,7 +404,7 @@ const Ops = function (cpu) {
 		},
 
 		JR_e8: function () {
-			var e8 = cpu.readByte (cpu.pc + 1) - 128;
+			var e8 = cpu.readByte (cpu.pc) - 128;
 
 			cpu.pc += e8;
 
@@ -425,14 +425,14 @@ const Ops = function (cpu) {
 			cpu.cycles += 1;
 		},
 		LD_r8_n8: function (r8) {
-			var byte = cpu.readByte (cpu.pc + 1);
+			var byte = cpu.readByte (cpu.pc);
 			cpu.writeReg (r8, byte);
 
 			cpu.cycles += 2;
 			cpu.pc += 1;
 		},
 		LD_r16_n16: function (r16) {
-			var chunk = cpu.read16 (cpu.pc + 1);
+			var chunk = cpu.read16 (cpu.pc);
 			cpu.writeReg16 (r16, chunk);
 
 			cpu.cycles += 3;
@@ -444,7 +444,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		LD_hl_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1);
+			var byte = cpu.readByte (cpu.pc);
 			cpu.writeByte (reg16.hl, byte);
 
 			cpu.cycles += 3;
@@ -462,7 +462,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		LD_n16_a: function () {
-			var chunk = cpu.read16 (cpu.pc + 1);
+			var chunk = cpu.read16 (cpu.pc);
 			cpu.writeByte (chunk, reg.a);
 
 			cpu.cycles += 4;
@@ -470,7 +470,7 @@ const Ops = function (cpu) {
 		},
 
 		LDH_n8_a: function () {
-			var byte = cpu.readByte (cpu.pc + 1);
+			var byte = cpu.readByte (cpu.pc);
 
 			cpu.writeByte (0xff00 + byte, reg.a);
 
@@ -490,14 +490,14 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		LD_a_n16: function () {
-			var byte = cpu.readByte (cpu.read16 (cpu.pc + 1)); // Byte pointed to by address
+			var byte = cpu.readByte (cpu.read16 (cpu.pc)); // Byte pointed to by address
 			cpu.writeReg ('a', byte);
 
 			cpu.cycles += 4;
 			cpu.pc += 2;
 		},
 		LDH_a_n8: function () {
-			var byte = cpu.readByte (0xff00 + cpu.readByte (cpu.pc + 1)); // Byte pointed to by io adress + n8
+			var byte = cpu.readByte (0xff00 + cpu.readByte (cpu.pc)); // Byte pointed to by io adress + n8
 			cpu.writeReg ('a', byte);
 
 			cpu.cycles += 3;
@@ -536,14 +536,14 @@ const Ops = function (cpu) {
 		},
 
 		LD_sp_n16: function () {
-			cpu.writeSP (cpu.read16 (cpu.pc + 1)); // Byte after opcode
+			cpu.writeSP (cpu.read16 (cpu.pc)); // Byte after opcode
 
 			cpu.cycles += 3;
 			cpu.pc += 2;
 		},
 
 		LD_n16_sp: function () {
-			var addr = cpu.read16 (cpu.pc + 1);
+			var addr = cpu.read16 (cpu.pc);
 			cpu.write16 (addr, cpu.sp);
 
 			cpu.cycles += 5;
@@ -551,7 +551,7 @@ const Ops = function (cpu) {
 		},
 
 		LD_hl_spe8: function () {
-			var e8 = cpu.readByte (cpu.pc + 1) - 128; // Signed byte
+			var e8 = cpu.readByte (cpu.pc) - 128; // Signed byte
 			var sum = e8 + cpu.sp;
 
 			ops.checkHcar (e8, cpu.sp);
@@ -598,7 +598,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		OR_a_n8: function () {
-			var byte = cpu.readByte (cpu.pc + 1);
+			var byte = cpu.readByte (cpu.pc);
 			var res = cpu.writeReg ('a', reg.a | byte);
 
 			ops.checkZero (res);
@@ -611,7 +611,10 @@ const Ops = function (cpu) {
 		},
 
 		POP_af: function () {
-			var lobyte = cpu.writeReg16 ('af', cpu.popSP ()) & 0xff; // Write popped chunk to reg af
+			var chunk = cpu.popSP ();
+
+			this.writeReg ('a', ((chunk & 0xff00) >> 8)); //  Get high byte
+			var lobyte = this.writeReg ('f', (chunk & 0xf0)); // Get low byte
 
 			// Correct Flags
 			flag.zero 	= lobyte & (1 << 7) ? true : false;
@@ -642,7 +645,7 @@ const Ops = function (cpu) {
 		},
 
 		RES_u3_r8: function (r8) {
-			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+			var u3 = cpu.readByte (cpu.pc) & 0x7;
 
 			cpu.writeReg ('a', reg [r8] & ~(1 << u3)); // Clear bit u3 in r8
 
@@ -650,7 +653,7 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 		RES_u3_hl: function () {
-			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+			var u3 = cpu.readByte (cpu.pc) & 0x7;
 			var byte = cpu.readByte (reg16.hl); // Byte pointed to be reg hl
 
 			cpu.writeByte (reg16.hl, byte & ~(1 << u3)); // Clear bit u3 in byte hl
@@ -857,7 +860,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2;
 		},
 		SBC_a_n8: function () {
-			var byte = (cpu.readByte (cpu.pc + 1) + flag.car) & 0xff;
+			var byte = (cpu.readByte (cpu.pc) + flag.car) & 0xff;
 
 			var res = cpu.writeReg ('a', reg.a - byte);
 
@@ -880,7 +883,7 @@ const Ops = function (cpu) {
 		},
 
 		SET_u3_r8: function (r8) {
-			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+			var u3 = cpu.readByte (cpu.pc) & 0x7;
 
 			cpu.writeReg (r8, reg [r8] | (1 << u3)); // Set bit u3 in reg r8
 
@@ -888,7 +891,7 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 		SET_u3_hl: function () {
-			var u3 = cpu.readByte (cpu.pc + 1) & 0x7;
+			var u3 = cpu.readByte (cpu.pc) & 0x7;
 			var byte = cpu.readByte (reg16.hl); // Get current byte hl
 
 			cpu.writeByte (reg16.hl, byte | (1 << u3)); // Set bit u3 in byte hl
@@ -897,9 +900,183 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 
+		SLA_r8: function (r8) {
+			flag.car = (reg [r8] & (1 << 7)) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeReg (r8, reg [r8] << 1);
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 2;
+		},
+		SLA_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+
+			flag.car = (byte & (1 << 7)) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeByte (reg16.hl, byte << 1);
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 4;
+		},
+
+		SRA_r8: function (r8) {
+			flag.car = (reg [r8] & 1) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeReg (r8, (reg [r8] >> 1) | (reg [r8] << 7)); // Arithmetic shift
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 2;
+		},
+		SRA_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+
+			flag.car = (byte & 1) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeByte (reg16.hl, (byte >> 1) | (byte << 7)); // Arithmetic shift
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 4;
+		},
+
+		SRL_r8: function (r8) {
+			flag.car = (reg [r8] & 1) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeReg (r8, reg [r8] >> 1); // Logical shift
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 2;
+		},
+		SRL_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+
+			flag.car = (byte & 1) !== 0; // Carry = bit shifted out
+
+			var res = cpu.writeByte (reg16.hl, byte >> 1); // Logical shift
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+
+			cpu.cycles += 4;
+		},
+
+		STOP: function () {
+			cpu.lowpower = true; // Set to low power mode
+			cpu.writeByte (0xff04, 0); // Reset divider register
+
+			this.pc += 1;
+		},
+
+		SUB_a_r8: function (r8) {
+			var prer8 = reg [r8];
+
+			var res = cpu.writeReg ('a', reg.a - prer8);
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			ops.checkSubHcar (res, prer8);
+			ops.checkSubCar (res, prer8);
+
+			cpu.cycles += 1;
+		},
+		SUB_a_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+
+			var res = cpu.writeReg ('a', reg.a - byte);
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			ops.checkSubHcar (res, byte);
+			ops.checkSubCar (res, byte);
+
+			cpu.cycles += 2;
+		},
+		SUB_a_n8: function () {
+			var byte = cpu.readByte (cpu.pc);
+
+			var res = cpu.writeReg ('a', reg.a - byte);
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			ops.checkSubHcar (res, byte);
+			ops.checkSubCar (res, byte);
+
+			cpu.cycles += 2;
+			cpu.pc += 1;
+		},
+
+		SWAP_r8: function (r8) {
+			var res = cpu.writeReg (r8, (reg [r8] >> 4) | (reg [r8] << 4));
+
+			flag.zero = res === 0;
+			flag.sub = 
+			flag.hcar = 
+			flag.car = false;
+
+			cpu.cycles += 2;
+		},
+		SWAP_hl: function (hl) {
+			var byte = cpu.readByte (reg16.hl);
+
+			var res = cpu.writeByte (reg16.hl, (byte >> 4) | (byte << 4));
+
+			flag.zero = res === 0;
+			flag.sub = 
+			flag.hcar = 
+			flag.car = false;
+
+			cpu.cycles += 4;
+		},
+
+		XOR_a_r8: function (r8) {
+			var res = cpu.writeReg ('a', reg.a ^ reg [r8]);
+			
+			flag.zero = res === 0;
+			flag.sub = 
+			flag.hcar = 
+			flag.car = false;
+
+			cpu.cycles += 1;	
+		},
+		XOR_a_hl: function () {
+			var byte = cpu.readByte (reg16.hl);
+
+			var res = cpu.writeReg ('a', reg.a ^ byte);
+			
+			flag.zero = res === 0;
+			flag.sub = 
+			flag.hcar = 
+			flag.car = false;
+
+			cpu.cycles += 2;	
+		},
+		XOR_a_n8: function () {
+			var byte = cpu.readByte (cpu.pc);
+
+			var res = cpu.writeReg ('a', reg.a ^ byte);
+			
+			flag.zero = res === 0;
+			flag.sub = 
+			flag.hcar = 
+			flag.car = false;
+
+			cpu.cycles += 2;
+			cpu.pc += 1;	
+		}
+
 	};
 
-	this.exeIns = function (opcode) {
+	this.exeIns = function () {
+		var opcode = cpu.readByte (cpu.pc ++);
 
 		switch (opcode) {
 			// NOP
