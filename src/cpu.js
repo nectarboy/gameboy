@@ -2,6 +2,25 @@ const Cpu = function (nes, rom) {
 
 	var cpu = this;
 
+	// =============== // CPU Timing //
+
+	this.cyclespersec = 60; // 4194304
+
+	this.fps = 
+	this.insperframe = 
+	this.interval = 0;
+
+	this.SetFPS = function (fps) {
+		this.fps = fps;
+		this.insperframe = this.cyclespersec / fps;
+		this.interval = 1000 / fps;
+
+		return fps;
+	};
+
+	this.defaultfps = 60; // Preferably 360 or higher ???
+	this.SetFPS (this.defaultfps);
+
 	// =============== //	Basic Elements //
 
 	// Basic Flags
@@ -13,6 +32,9 @@ const Cpu = function (nes, rom) {
 
 	this.rombank = 1;
 	this.rambank = 1;
+
+	this.mbc = 0;
+	this.ramenabled = false;
 
 	// =============== //	Registers and Flags //
 
@@ -54,6 +76,7 @@ const Cpu = function (nes, rom) {
 		h: 0,
 		l: 0
 	};
+	// TODO: Rework reg16s into get functions - reg16 values dont change along with regs
 	this.reg16 = {
 		af: 0,
 		bc: 0,
@@ -65,9 +88,10 @@ const Cpu = function (nes, rom) {
 		return this.reg [r8] = val & 0xff; // Mask to 8bit int
 	};
 	this.writeReg16 = function (r16, val) {
-		this.writeReg (r16 [0], ((val & 0xff00) >> 8)); //  Get high byte
-		this.writeReg (r16 [1], (val & 0xff)); // Get low byte
-		return this.reg16 [r16] = val & 0xffff; // Return 16bit int of val
+		val = val & 0xffff;
+		this.writeReg (r16 [0], val >> 8); //  Get high byte
+		this.writeReg (r16 [1], val & 0xff); // Get low byte
+		return this.reg16 [r16] = val; // Return 16bit int of val
 	};
 
 	// Flags
@@ -113,7 +137,9 @@ const Cpu = function (nes, rom) {
 		}
 		// WORK //
 		if (addr < 0xc000) {
-			return mem.cartram [addr - 0xa000]; // WIP
+			if (!this.ramenabled)
+				return 0xff;
+			return mem.cartram [addr - 0xa000]; // Extra ram - WIP
 		}
 		if (addr < 0xe000) {
 			return mem.wram [addr - 0xc000];
@@ -135,7 +161,7 @@ const Cpu = function (nes, rom) {
 
 			if (!mem.ioonwrite [ioaddr]) // Unmapped mmio
 				return 0xff;
-			return mem.ioreg [addr - 0xff00]; // WIP
+			return mem.ioreg [addr - 0xff00];
 		}
 		// HIGH
 		if (addr < 0xffff) {
@@ -150,10 +176,12 @@ const Cpu = function (nes, rom) {
 		addr = addr & 0xffff; // Mask to 16bit int
 		val = val & 0xff; // Mask to 8bit int
 
-		// ROM //
+		// MBC CONTROL //
 		if (addr < 0x8000) {
+			var mbcControl = mem.mbcControl [this.mbc];
+			if (mbcControl)
+				mbcControl ();
 			return val;
-			// MBC control WIP
 		}
 		// VIDEO //
 		if (addr < 0xa000) {
@@ -161,7 +189,9 @@ const Cpu = function (nes, rom) {
 		}
 		// WORK //
 		if (addr < 0xc000) {
-			return mem.cartram [addr - 0xa000] = val; // WIP
+			if (this.ramenabled)
+				mem.cartram [addr - 0xa000] = val;
+			return val;
 		}
 		if (addr < 0xe000) {
 			return mem.wram [addr - 0xc000] = val;
@@ -190,7 +220,6 @@ const Cpu = function (nes, rom) {
 			return mem.hram [addr - 0xff80] = val;
 		}
 		// INTERRUPT
-		this.ime = val;
 		return mem.iereg = val;
 	};
 
@@ -218,15 +247,20 @@ const Cpu = function (nes, rom) {
 	this.currentTimeout = null;
 
 	this.step = function () {
-		this.ops.exeIns ();
+		for (var i = 0; i < this.insperframe; i ++) {
+			this.op.exeIns ();
+		}
 	};
 
 	this.loopExe = function () {
-		this.step ();
+		// WIP
+		for (var i = 0; i < this.insperframe; i ++) {
+			this.step ();
+		}
 
 		this.currentTimeout = setTimeout (() => {
 			cpu.loopExe (); // Continue program loop
-		}, 100);
+		}, this.interval);
 	};
 
 	this.stopExe = function () {

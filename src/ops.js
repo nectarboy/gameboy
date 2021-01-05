@@ -10,35 +10,27 @@ const Ops = function (cpu) {
 
 	// Flags //
 	this.checkHcar = function (a, b) {
-		return flag.hcar = (((a & 0xf) + (b & 0xf)) > 0xf)
+		return flag.hcar = (((a & 0xf) + (b & 0xf)) > 0xf);
 	};
 	this.checkCar = function (sum) {
-		return flag.car = (sum > 0xff)
+		return flag.car = (sum > 0xff);
 	};
 	this.checkZero = function (res) {
-		return flag.zero = (res === 0)
+		return flag.zero = (res === 0);
 	};
 
 	this.checkHcar16 = function (a, b) {
-		return flag.hcar = (((a & 0xfff) + (b & 0xfff)) > 0xfff)
+		return flag.hcar = (((a & 0xfff) + (b & 0xfff)) > 0xfff);
 	};
 	this.checkCar16 = function (sum) {
-		return flag.car = (sum > 0xffff)
+		return flag.car = (sum > 0xffff);
 	};
 
 	this.checkSubCar = function (a, b) {
-		return flag.car = (a < b)
+		return flag.car = (a < b);
 	};
 	this.checkSubHcar = function (a, b) {
-		flag.hcar = ((a & 0xf) < (b & 0xf))
-	};
-
-	// Byte Rotations //
-	this.rotLeft = function (n) {
-		return (n << 1) | (n >> 7); 
-	};
-	this.rotRight = function (n) {
-		return (n >> 1) | (n << 7); 
+		flag.hcar = ((a & 0xf) < (b & 0xf));
 	};
 
 	// =============== //	Instructions //
@@ -239,7 +231,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 2; // 4 + 2
 		},
 		CALL_cc_n16: function () {
-			if (flag.car)
+			if (flag.zero)
 				return this.CALL_n16 ();
 
 			cpu.cycles += 3;
@@ -267,7 +259,8 @@ const Ops = function (cpu) {
 			cpu.cycles += 1;
 		},
 		CP_a_hl: function () {
-			var byte = cpu.readByte (reg16.hl)
+			var byte = cpu.readByte (reg16.hl);
+
 			var res = (reg.a - byte) & 0xff;
 
 			ops.checkZero (res);
@@ -279,6 +272,7 @@ const Ops = function (cpu) {
 		},
 		CP_a_n8: function () {
 			var byte = cpu.readByte (cpu.pc);
+
 			var res = (reg.a - byte) & 0xff;
 
 			ops.checkZero (res);
@@ -312,6 +306,7 @@ const Ops = function (cpu) {
 		},
 		DEC_hl: function (r8) {
 			var byte = cpu.readByte (reg16.hl);
+
 			var res = cpu.writeByte (reg16.hl, byte - 1);
 
 			ops.checkZero (res);
@@ -393,7 +388,7 @@ const Ops = function (cpu) {
 			cpu.pc = addr - 1; // Sub 1 because it increments later, which we aint want
 		},
 		JP_cc_n16: function () {
-			if (flag.car)
+			if (flag.zero)
 				return this.JP_n16 ();
 
 			cpu.cycles += 3; // Untaken
@@ -412,7 +407,7 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 		JR_cc_e8: function () {
-			if (flag.car)
+			if (flag.zero)
 				return this.JR_e8 ();
 
 			cpu.cycles += 2; // Untaken
@@ -552,15 +547,16 @@ const Ops = function (cpu) {
 
 		LD_hl_spe8: function () {
 			var e8 = cpu.readByte (cpu.pc) - 128; // Signed byte
-			var sum = e8 + cpu.sp;
 
 			ops.checkHcar (e8, cpu.sp);
 			ops.checkCar (sum);
 
-			cpu.writeReg16 ('hl', sum); // Store in reg hl
+			cpu.writeReg16 ('hl', e8 + cpu.sp); // Store in reg hl
 
 			flag.zero = false;
 			flag.sub = false;
+			flag.hcar = ((e8 & 0x3) + (cpu.sp & 0x3)) > 0x3;
+			flag.car = ((e8 & 0x7) + (cpu.sp & 0x7)) > 0x7;
 
 			cpu.cycles += 3;
 			cpu.pc += 1;
@@ -668,7 +664,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 4;
 		},
 		RET_cc: function () {
-			if (flag.car) {
+			if (flag.zero) {
 				this.RET ();
 				return this.cycles += 1; // Extra cycle
 			}
@@ -676,17 +672,16 @@ const Ops = function (cpu) {
 			cpu.cycles += 2; // Untaken
 		},
 		RETI: function () {
-			this.EI ();
 			this.RET ();
-
-			cpu.cycles -= 1; // Remove excess cycle
+			// EI
+			cpu.ime = true;
 		},
 
 		// Rotate Left INS //
 
 		RL_r8: function (r8) {
 			var precar = flag.car;
-			flag.car = (reg [r8] & (1 << 7)) ? true : false;
+			flag.car = (reg [r8] & (1 << 7)) !== 0;
 
 			var res = cpu.writeReg (r8, (reg [r8] << 1) | precar); // Rotate reg r8
 			ops.checkZero (res);
@@ -700,7 +695,7 @@ const Ops = function (cpu) {
 			var byte = cpu.readByte (reg16.hl);
 
 			var precar = flag.car;
-			flag.car = (byte & (1 << 7)) ? true : false;
+			flag.car = (byte & (1 << 7)) !== 0;
 
 			var res = cpu.writeByte (reg16.hl, (byte << 1) | precar); // Rotate byte
 			ops.checkZero (res);
@@ -712,7 +707,7 @@ const Ops = function (cpu) {
 		},
 		RLA: function () {
 			var precar = flag.car;
-			flag.car = (reg.a & (1 << 7)) ? true : false;
+			flag.car = (reg.a & (1 << 7)) !== 0;
 
 			var res = cpu.writeReg ('a', (reg.a << 1) | precar); // Rotate reg a
 
@@ -722,10 +717,10 @@ const Ops = function (cpu) {
 		},
 
 		RLC_r8: function (r8) {
-			var res = cpu.writeReg (r8, ops.rotLeft (reg [r8])); // Rotate reg r8 left
+			var res = cpu.writeReg (r8, (reg [r8] << 1) | (reg [r8] >> 7)); // Rotate reg r8 left
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0;
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
@@ -734,10 +729,10 @@ const Ops = function (cpu) {
 		},
 		RLC_hl: function () {
 			var byte = cpu.readByte (reg16.hl);
-			var res = cpu.writeByte (reg16.hl, ops.rotLeft (byte)); // Rotate byte left
+			var res = cpu.writeByte (reg16.hl, (byte << 1) | (byte >> 7)); // Rotate byte left
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0;
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
@@ -745,10 +740,10 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 		RLCA: function () {
-			var res = cpu.writeReg ('a', ops.rotLeft (reg.a)); // Rotate reg a left
+			var res = cpu.writeReg ('a', (reg.a << 1) | (reg.a >> 7)); // Rotate reg a left
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0;
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
 			cpu.cycles += 1;
@@ -758,9 +753,9 @@ const Ops = function (cpu) {
 
 		RR_r8: function (r8) {
 			var precar = flag.car;
-			flag.car = (reg [r8] & (1 << 7)) ? true : false;
+			flag.car = (reg [r8] & (1 << 7)) !== 0; // Carry is msb
 
-			var res = cpu.writeReg (r8, (reg [r8] >> 1) | precar); // Rotate reg r8
+			var res = cpu.writeReg (r8, (reg [r8] >> 1) | (precar << 7)); // Rotate reg r8
 			ops.checkZero (res);
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
@@ -772,9 +767,9 @@ const Ops = function (cpu) {
 			var byte = cpu.readByte (reg16.hl);
 
 			var precar = flag.car;
-			flag.car = (byte & (1 << 7)) ? true : false;
+			flag.car = (byte & (1 << 7)) !== 0; // Carry is msb
 
-			var res = cpu.writeByte (reg16.hl, (byte >> 1) | precar); // Rotate byte
+			var res = cpu.writeByte (reg16.hl, (byte >> 1) | (precar << 7)); // Rotate byte
 			ops.checkZero (res);
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
@@ -784,9 +779,9 @@ const Ops = function (cpu) {
 		},
 		RRA: function () {
 			var precar = flag.car;
-			flag.car = (reg.a & (1 << 7)) ? true : false;
+			flag.car = (reg.a & (1 << 7)) !== 0; // Carry is msb
 
-			var res = cpu.writeReg ('a', (reg.a >> 1) | precar); // Rotate reg a
+			var res = cpu.writeReg ('a', (reg.a >> 1) | (precar << 7)); // Rotate reg a
 
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
@@ -794,10 +789,10 @@ const Ops = function (cpu) {
 		},
 
 		RRC_r8: function (r8) {
-			var res = cpu.writeReg (r8, ops.rotRight (reg [r8])); // Rotate reg r8 right
+			var res = cpu.writeReg (r8, (reg [r8] >> 1) | (reg [r8] << 7)); // Rotate reg r8 right
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0; // Carry is lsb
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
@@ -806,10 +801,10 @@ const Ops = function (cpu) {
 		},
 		RRC_hl: function () {
 			var byte = cpu.readByte (reg16.hl);
-			var res = cpu.writeByte (reg16.hl, ops.rotRight (byte)); // Rotate byte right
+			var res = cpu.writeByte (reg16.hl, (byte >> 1) | (byte << 7)); // Rotate byte right
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0; // Carry is lsb
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
@@ -817,10 +812,10 @@ const Ops = function (cpu) {
 			cpu.pc += 1;
 		},
 		RRCA: function () {
-			var res = cpu.writeReg ('a', ops.rotRight (reg.a)); // Rotate reg a right
+			var res = cpu.writeReg ('a', (reg.a >> 1) | (reg.a << 7)); // Rotate reg a right
 
 			// Flags //
-			flag.car = (res & 1) ? true : false;
+			flag.car = (res & 1) !== 0; // Carry is lsb
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
 			cpu.cycles += 1;
@@ -909,6 +904,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 2;
+			cpu.pc += 1;
 		},
 		SLA_hl: function () {
 			var byte = cpu.readByte (reg16.hl);
@@ -921,6 +917,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 4;
+			cpu.pc += 1;
 		},
 
 		SRA_r8: function (r8) {
@@ -932,6 +929,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 2;
+			cpu.pc += 1;
 		},
 		SRA_hl: function () {
 			var byte = cpu.readByte (reg16.hl);
@@ -944,6 +942,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 4;
+			cpu.pc += 1;
 		},
 
 		SRL_r8: function (r8) {
@@ -955,6 +954,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 2;
+			cpu.pc += 1;
 		},
 		SRL_hl: function () {
 			var byte = cpu.readByte (reg16.hl);
@@ -967,6 +967,7 @@ const Ops = function (cpu) {
 			flag.sub = flag.hcar = false;
 
 			cpu.cycles += 4;
+			cpu.pc += 1;
 		},
 
 		STOP: function () {
@@ -1023,6 +1024,7 @@ const Ops = function (cpu) {
 			flag.car = false;
 
 			cpu.cycles += 2;
+			cpu.pc += 1;
 		},
 		SWAP_hl: function (hl) {
 			var byte = cpu.readByte (reg16.hl);
@@ -1035,6 +1037,7 @@ const Ops = function (cpu) {
 			flag.car = false;
 
 			cpu.cycles += 4;
+			cpu.pc += 1;
 		},
 
 		XOR_a_r8: function (r8) {
@@ -1078,6 +1081,8 @@ const Ops = function (cpu) {
 	this.exeIns = function () {
 		var opcode = cpu.readByte (cpu.pc ++);
 
+		opcode += (opcode === 0xcb) * 0xff; // CB prefix
+
 		switch (opcode) {
 			// NOP
 			case 0x00: {
@@ -1113,7 +1118,135 @@ const Ops = function (cpu) {
 			case 0x06: {
 				this.INS.LD_r8_n8 ('b');
 				break;
-			};
+			}
+			// RLCA
+			case 0x07: {
+				this.INS.RLCA ();
+				break;
+			}
+			// LD n16 SP
+			case 0x08: {
+				this.INS.LD_n16_sp ();
+				break;
+			}
+			// ADD HL BC
+			case 0x09: {
+				this.INS.ADD_hl_r16 ('bc');
+				break;
+			}
+			// LD A BC
+			case 0x0a: {
+				this.INS.LD_a_r16 ('bc');
+				break;
+			}
+			// DEC BC
+			case 0x0b: {
+				this.INS.DEC_r16 ('bc');
+				break;
+			}
+			// INC C
+			case 0x0c: {
+				this.INS.INC_r8 ('c');
+				break;
+			}
+			// DEC C
+			case 0x0d: {
+				this.INS.DEC_r8 ('c');
+				break;
+			}
+			// LD C n8
+			case 0x0e: {
+				this.INS.LD_r8_n8 ('c');
+				break;
+			}
+			// RRCA
+			case 0x0f: {
+				this.INS.RRCA ();
+				break;
+			}
+
+			// STOP
+			case 0x10: {
+				this.INS.STOP ();
+				break;
+			}
+			// LD DE n16
+			case 0x11: {
+				this.INS.LD_r16_n16 ('de');
+				break;
+			}
+			// LD DE A
+			case 0x12: {
+				this.INS.LD_r16_a ('de');
+				break;
+			}
+			// INC DE
+			case 0x13: {
+				this.INS.INC_r16 ('de');
+				break;
+			}
+			// INC D
+			case 0x14: {
+				this.INS.INC_r8 ('d');
+				break;
+			}
+			// DEC D
+			case 0x15: {
+				this.INS.DEC_r8 ('d');
+				break;
+			}
+			// LD D n8
+			case 0x16: {
+				this.INS.LD_r8_n8 ('d');
+				break;
+			}
+			// RLA
+			case 0x17: {
+				this.INS.RLA ();
+				break;
+			}
+			// JR e8
+			case 0x18: {
+				this.INS.JR_e8 ();
+				break;
+			}
+			// ADD HL DE
+			case 0x19: {
+				this.INS.ADD_hl_r16 ('de');
+				break;
+			}
+			// LD A DE
+			case 0x1a: {
+				this.INS.LD_a_r16 ('de');
+				break;
+			}
+			// DEC DE
+			case 0x1b: {
+				this.INS.DEC_r16 ('de');
+				break;
+			}
+			// INC E
+			case 0x1c: {
+				this.INS.INC_r8 ('e');
+				break;
+			}
+			// DEC E
+			case 0x1d: {
+				this.INS.DEC_r8 ('e');
+				break;
+			}
+			// LD E n8
+			case 0x1e: {
+				this.INS.LD_r8_n8 ('e');
+				break;
+			}
+			// RRA
+			case 0x1f: {
+				this.INS.RRA ();
+				break;
+			}
+
+			// 
 			
 			// PANIC PANIC PANIC PANIC PANIC !!!
 			default: {

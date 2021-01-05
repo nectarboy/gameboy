@@ -39,7 +39,7 @@ const Mem = function (nes, rom) {
 	this.ioonwrite = {
 		// Div timer
 		[0x04]: function (val) {
-			mem.ioreg [0x04] = 0;
+			mem.ioreg [0x04] = 0; // Reset
 		},
 
 		// LCDC
@@ -61,6 +61,27 @@ const Mem = function (nes, rom) {
 			ppu.lcd_enabled = bits [7];
 
 			mem.ioreg [0x40] = val;
+		}
+	};
+
+	// =============== //	MBC Control Functions //
+
+	this.mbcControl = {
+		1: function (addr) {
+			// EXTRA RAM ENABLE //
+			if (addr < 0x2000) {
+				this.ramenabled = (val & 0xf) === 0x0a; // Value with 0xa enables
+				return val;
+			}
+			// ROM BANK NUMBER //
+			if (addr < 0x4000) {
+				this.rombank = val | 0b11100000; // First 3 bits are always 1
+				return val;
+			}
+			// EXTRA ROM BANK BITS //
+			if (addr < 0x6000) {
+
+			}
 		}
 	};
 
