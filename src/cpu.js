@@ -1,4 +1,4 @@
-const Cpu = function (nes, rom) {
+const Cpu = function (nes) {
 
 	var cpu = this;
 
@@ -7,12 +7,12 @@ const Cpu = function (nes, rom) {
 	this.cyclespersec = 60; // 4194304
 
 	this.fps = 
-	this.insperframe = 
+	this.cyclesperframe = 
 	this.interval = 0;
 
 	this.SetFPS = function (fps) {
 		this.fps = fps;
-		this.insperframe = this.cyclespersec / fps;
+		this.cyclesperframe = this.cyclespersec / fps;
 		this.interval = 1000 / fps;
 
 		return fps;
@@ -23,12 +23,13 @@ const Cpu = function (nes, rom) {
 
 	// =============== //	Basic Elements //
 
-	// Basic Flags
+	// Basic flags
 	this.bootromAtm = true;
-
 	this.lowpower = false;
+	this.ime = false;
 
-	this.ime = 0; // Off by default
+	// Rom properties
+	this.hasrom = false;
 
 	this.rombank = 1;
 	this.rambank = 1;
@@ -76,18 +77,38 @@ const Cpu = function (nes, rom) {
 		h: 0,
 		l: 0
 	};
-	// TODO: Rework reg16s into get functions - reg16 values dont change along with regs
-	this.reg16 = {
-		af: 0,
-		bc: 0,
-		de: 0,
-		hl: 0
+
+	this.getReg16 = {
+		af: function () {this.get ('a', 'f')},
+		bc: function () {this.get ('b', 'c')},
+		de: function () {this.get ('d', 'e')},
+		hl: function () {this.get ('h', 'l')},
+
+		get (rx, ry) {
+			var hi = cpu.reg [rx];
+			var lo = cpu.reg [rx];
+			return (hi << 8) | lo;
+		}
+	};
+	this.writeReg16 = {
+		af: function (val) {this.write ('a', 'f', val)},
+		bc: function (val) {this.write ('b', 'c', val)},
+		de: function (val) {this.write ('d', 'e', val)},
+		hl: function (val) {this.write ('h', 'l', val)},
+
+		write (rx, ry, val) {
+			val = val & 0xffff;
+			cpu.writeReg (rx, val >> 8); //  Get high byte
+			cpu.writeReg (ry, val & 0xff); // Get low byte
+			return val;
+		}
 	};
 
 	this.writeReg = function (r8, val) {
 		return this.reg [r8] = val & 0xff; // Mask to 8bit int
 	};
-	this.writeReg16 = function (r16, val) {
+
+	this.write = function (rx, ry, val) {
 		val = val & 0xffff;
 		this.writeReg (r16 [0], val >> 8); //  Get high byte
 		this.writeReg (r16 [1], val & 0xff); // Get low byte
@@ -104,7 +125,7 @@ const Cpu = function (nes, rom) {
 
 	// =============== // 	Memory //
 
-	this.mem = new Mem (nes, rom);
+	this.mem = new Mem (nes);
 
 	/* uint8 read_byte(uint16 addr) {
 		  if (addr < 0x100 && bootrom_enabled)
@@ -126,10 +147,14 @@ const Cpu = function (nes, rom) {
 			return mem.bootrom [addr];
 		}
 		if (addr < 0x4000) {
+			if (!this.hasrom)
+				return 0xff;
 			return mem.cartrom [addr];
 		}
 		if (addr < 0x8000) {
-			return mem.cartrom [this.rombank * 0x4000 + (addr & 0x3fff)]; // switchable rom
+			if (!this.hasrom)
+				return 0xff;
+			return mem.cartrom [this.rombank * 0x4000 + (addr & 0x3fff)];
 		}
 		// VIDEO //
 		if (addr < 0xa000) {
@@ -227,7 +252,7 @@ const Cpu = function (nes, rom) {
 		var hi = this.readByte (addr); //  Get high byte
 		var lo = this.readByte (addr + 1); //  Get low byte
 
-		return (hi << 8) | lo; // Mask to 16bit int
+		return (lo << 8) | hi; // Mask to 16bit int
 	};
 	/*this.write16 = function (addr, val) {
 		cpu.writeByte (addr, ((val & 0xff00) >> 8)); //  Get high byte
@@ -242,39 +267,82 @@ const Cpu = function (nes, rom) {
 		return val & 0xffff;
 	};
 
-	// =============== //	Basic Functions //
+	// =============== //	Instructions //
+
+	this.ops = new Ops (this);
+
+	// =============== //	Loop Functions //
 
 	this.currentTimeout = null;
 
-	this.step = function () {
-		for (var i = 0; i < this.insperframe; i ++) {
-			this.op.exeIns ();
+	this.Step = function () {
+		for (var i = 0; i < this.cyclesperframe; i ++) {
+			this.ops.ExeIns ();
 		}
 	};
 
-	this.loopExe = function () {
+	this.LoopExe = function () {
 		// WIP
-		for (var i = 0; i < this.insperframe; i ++) {
-			this.step ();
+		for (var i = 0; i < this.cyclesperframe; i ++) {
+			this.Step ();
 		}
 
 		this.currentTimeout = setTimeout (() => {
-			cpu.loopExe (); // Continue program loop
+			cpu.LoopExe (); // Continue program loop
 		}, this.interval);
 	};
 
-	this.stopExe = function () {
+	this.StopExe = function () {
 		clearTimeout (this.currentTimeout);
+	};
+
+	// Reset
+	this.Reset = function () {
+		// Reset registers
+		this.reg.a = 
+		this.reg.b =
+		this.reg.c =
+		this.reg.d =
+		this.reg.e =
+		this.reg.f =
+		this.reg.h =
+		this.reg.l = 0;
+
+		// Reset flags
+		this.flag.zero =
+		this.flag.sub =
+		this.flag.hcar =
+		this.flag.car = false;
+
+		// Reset program
+		this.pc = 0x0000;
+		this.cycles = 0;
+		this.sp = 0xfffe; // PH
+
+		this.bootromAtm = true;
+		this.lowpower = false;
+		this.ime = false;
+
+		// Reset rom 
+		this.rombank = 1;
+		this.rambank = 1;
+
+		this.mbc = 0;
+		this.ramenabled = false;
+
 	};
 
 	// =============== //	Debugging //
 
-	this.memdump = function () {
+	this.Memdump = function () {
 		console.log (this.mem);
 	};
 
-	// =============== //	Instructions //
+	this.Panic = function (err) {
+		nes.Stop ();
 
-	this.ops = new Ops (this);
+		alert (err);
+		throw err;
+	};
 
 };

@@ -1,8 +1,6 @@
-const Ppu = function (nes, canvas) {
+const Ppu = function (nes) {
 
 	var ppu = this;
-
-	this.ctx = canvas.getContext ('2d');
 
 	// =============== //	Basic Elements //
 
@@ -42,7 +40,15 @@ const Ppu = function (nes, canvas) {
 
 	// =============== //	Canvas Drawing //
 
-	this.img = this.ctx.createImageData (gbwidth, gbheight);
+	this.ctx = null;
+	this.img = null;
+
+	this.ResetCtx = function (c) {
+		this.ctx = nes.canvas.getContext ('2d');
+		this.img = this.ctx.createImageData (gbwidth, gbheight);
+
+		this.clearImg ();
+	};
 
 	this.putPixel = function (ind, color) {
 		ind = ind * 4;
@@ -66,6 +72,21 @@ const Ppu = function (nes, canvas) {
 		}
 	};
 
-	this.clearImg ();
+	// Reset
+	this.Reset = function () {
+		// Reset blanking status
+		this.hblanking = 
+		this.vblanking = false;
+
+		// Reset lcdc
+		this.lcdc.bg_priority = false;
+		this.lcdc.sprite_enabled = false;
+		this.lcdc.sprite_size = false;
+		this.lcdc.bg_tilemap_alt = false;
+		this.lcdc.bg_window_start = false;
+		this.lcdc.window_enabled = false;
+		this.lcdc.window_tilemap_start = false;
+		this.lcdc.lcd_enabled = false;
+	};
 
 };

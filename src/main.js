@@ -1,43 +1,58 @@
 const Gameboy = function () {
 
-	var gameboy = this;
+	var gb = this;
 
-	// Components //
+	// Frontend elements
+	this.canvas = null;
 
-	this.cpu = null;
-	this.ppu = null;
-	this.mem = null;
+	// =============== // 	Components //
 
-	// Functions //
+	this.cpu = new Cpu (this);
+	this.ppu = new Ppu (this);
 
-	this.reset = function (rom, canvas) {
-		if (this.cpu)
-			this.cpu.stopExe (); // Stop current program
+	// =============== // 	Functions //
 
-		// Restart all components
-		this.cpu = new Cpu (this, rom);
-		this.ppu = new Ppu (this, canvas);
+	this.Start = function () {
+		this.Stop ();
 
-		console.log ('booting !');
+		console.log ('started execution.');
 
-		this.cpu.loopExe (); // Begin program
+		// Start all components
+		this.cpu.LoopExe ();
 	};
 
-	this.start = function (file, canvas) {
-		if (!file)
-			throw '(Invalid rom file!)';
+	this.Stop = function () {
+		this.cpu.StopExe ();
+		// Stop rest of components ...
+
+		console.log ('stopped execution.');
+	};
+
+	this.Reset = function () {
+		this.cpu.Reset ();
+		this.cpu.Reset ();
+	}
+
+	this.ReadRomFile = function (file) {
+		if (!file) {
+			var msg = '(Invalid rom file!)';
+
+			alert (msg);
+			throw msg;
+		}
 
 		console.log ('loading rom...');
 
 		var fr = new FileReader ();
 		fr.onload = function () {
-			gameboy.reset (fr.result, canvas);
+			gb.cpu.mem.LoadRom (fr.result); // Load Rom
 		};
 		fr.readAsArrayBuffer (file);
 	};
 
-	this.stop = function () {
-		this.cpu.stopExe ();
+	this.AttachCanvas = function (c) {
+		this.canvas = c;
+		this.ppu.ResetCtx ();
 	};
 
 };
