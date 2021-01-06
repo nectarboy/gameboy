@@ -28,8 +28,8 @@ const Mem = function (nes) {
 	// IO registers - 0xff00 - 0xff7f
 	this.ioreg = new Uint8Array (0x80);
 
-	// high ram - 0xff80 - 0xfffe
-	this.hram = new Uint8Array (0x19);
+	// high ram - 0xff80 - 0xffff
+	this.hram = new Uint8Array (0x80);
 
 	// interrupt enable register - 0xffff
 	this.iereg = 0;
@@ -49,13 +49,13 @@ const Mem = function (nes) {
 		for (var i = 0x134; i < 0x13f; i ++) {
 			str += String.fromCharCode (mem.cartrom [i]);
 		}
-		document.title = str;
+		document.title = 'Pollen Boy - ' + str;
 	};
 
 	// =============== //	IO Registers //
 
 	this.ioonwrite = {
-		// Div timer
+		// Div timer - incs every 256 cycles
 		[0x04]: function (val) {
 			mem.ioreg [0x04] = 0; // Reset
 		},
@@ -63,22 +63,51 @@ const Mem = function (nes) {
 		// LCDC
 		[0x40]: function (val) {
 			var bits = [];
-			var ppu = nes.ppu;
+			var lcdc = nes.ppu.lcdc;
 
 			for (var i = 0; i < 8; i ++) {
 				bits [i] = (val & (1 << i)) !== 0;
 			}
 
-			ppu.bg_priority = bits [0];
-			ppu.sprite_enabled = bits [1];
-			ppu.sprite_size = bits [2];
-			ppu.bg_tilemap_alt = bits [3];
-			ppu.bg_window_start = bits [4];
-			ppu.window_enabled = bits [5];
-			ppu.window_tilemap_start = bits [6];
-			ppu.lcd_enabled = bits [7];
+			lcdc.bg_priority = bits [0];
+			lcdc.sprite_enabled = bits [1];
+			lcdc.sprite_size = bits [2];
+			lcdc.bg_tilemap_alt = bits [3];
+			lcdc.bg_window_start = bits [4];
+			lcdc.window_enabled = bits [5];
+			lcdc.window_tilemap_alt = bits [6];
+			lcdc.lcd_enabled = bits [7];
 
 			mem.ioreg [0x40] = val;
+		},
+
+		// BG scroll y
+		[0x42]: function (val) {
+			nes.ppu.scrolly = mem.ioreg [0x42] = val;
+		},
+		// BG scroll x
+		[0x43]: function (val) {
+			nes.ppu.scrollx = mem.ioreg [0x43] = val;
+		},
+
+		// Pallete shades
+		[0x47]: function (val) {
+			var palshades = nes.ppu.palshades;
+
+			for (var i = 0; i < 4; i ++) {
+				// Get specific crumbs from val
+				// A 'crumb' is a 2 bit number, i coined that :D
+				palshades [i] = (val >> (i * 2)) & 0x3;
+			}
+
+			mem.ioreg [0x47] = val;
+		},
+
+		// Enable / disable bootrom
+		[0x50]: function (val) {
+			nes.cpu.bootromAtm = (val === 0);
+
+			mem.ioreg [0x50] = val;
 		}
 	};
 

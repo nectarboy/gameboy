@@ -4,7 +4,7 @@ const Cpu = function (nes) {
 
 	// =============== // CPU Timing //
 
-	this.cyclespersec = 60; // 4194304
+	this.cyclespersec = 4194304; // 4194304
 
 	this.fps = 
 	this.cyclesperframe = 
@@ -18,7 +18,7 @@ const Cpu = function (nes) {
 		return fps;
 	};
 
-	this.defaultfps = 60; // Preferably 360 or higher ???
+	this.defaultfps = 360; // Preferably 360 or higher ???
 	this.SetFPS (this.defaultfps);
 
 	// =============== //	Basic Elements //
@@ -26,6 +26,7 @@ const Cpu = function (nes) {
 	// Basic flags
 	this.bootromAtm = true;
 	this.lowpower = false;
+
 	this.ime = false;
 
 	// Rom properties
@@ -58,10 +59,10 @@ const Cpu = function (nes) {
 		return val & 0xffff; // Mask to 16bit int
 	};
 	this.popSP = function () {
+		var lo = this.readByte (this.sp); // Lo byte
 		this.writeSP (this.sp + 1);
-		var lo = cpu.readByte (this.sp); // Lo byte
+		var hi = this.readByte (this.sp); // Hi byte
 		this.writeSP (this.sp + 1);
-		var hi = cpu.readByte (this.sp); // Hi byte
 
 		return (hi << 8) | lo; // Combine lo and hi together
 	};
@@ -79,22 +80,22 @@ const Cpu = function (nes) {
 	};
 
 	this.getReg16 = {
-		af: function () {this.get ('a', 'f')},
-		bc: function () {this.get ('b', 'c')},
-		de: function () {this.get ('d', 'e')},
-		hl: function () {this.get ('h', 'l')},
+		af: function () {return this.get ('a', 'f')},
+		bc: function () {return this.get ('b', 'c')},
+		de: function () {return this.get ('d', 'e')},
+		hl: function () {return this.get ('h', 'l')},
 
 		get (rx, ry) {
 			var hi = cpu.reg [rx];
-			var lo = cpu.reg [rx];
+			var lo = cpu.reg [ry];
 			return (hi << 8) | lo;
 		}
 	};
 	this.writeReg16 = {
-		af: function (val) {this.write ('a', 'f', val)},
-		bc: function (val) {this.write ('b', 'c', val)},
-		de: function (val) {this.write ('d', 'e', val)},
-		hl: function (val) {this.write ('h', 'l', val)},
+		af: function (val) {return this.write ('a', 'f', val)},
+		bc: function (val) {return this.write ('b', 'c', val)},
+		de: function (val) {return this.write ('d', 'e', val)},
+		hl: function (val) {return this.write ('h', 'l', val)},
 
 		write (rx, ry, val) {
 			val = val & 0xffff;
@@ -106,13 +107,6 @@ const Cpu = function (nes) {
 
 	this.writeReg = function (r8, val) {
 		return this.reg [r8] = val & 0xff; // Mask to 8bit int
-	};
-
-	this.write = function (rx, ry, val) {
-		val = val & 0xffff;
-		this.writeReg (r16 [0], val >> 8); //  Get high byte
-		this.writeReg (r16 [1], val & 0xff); // Get low byte
-		return this.reg16 [r16] = val; // Return 16bit int of val
 	};
 
 	// Flags
@@ -236,8 +230,9 @@ const Cpu = function (nes) {
 		if (addr < 0xff80) {
 			var ioaddr = addr - 0xff00;
 
-			if (mem.ioonwrite [ioaddr])
-				mem.ioonwrite [ioaddr] (val); // WIP
+			var ioonwrite = mem.ioonwrite [ioaddr];
+			if (ioonwrite)
+				ioonwrite (val);
 			return val;
 		}
 		// HIGH
@@ -275,20 +270,32 @@ const Cpu = function (nes) {
 
 	this.currentTimeout = null;
 
-	this.Step = function () {
-		for (var i = 0; i < this.cyclesperframe; i ++) {
+	this.Step = function (extracycles) {
+		var ppu = nes.ppu;
+
+		var cycles = this.cyclesperframe - extracycles;
+		var precycles = this.cycles;
+
+		while (cycles > 0) {
+			// Handle program timings
 			this.ops.ExeIns ();
+			ppu.DoScanline ();
+
+			// Reset cycle timing
+			this.cycles -= precycles;
+			precycles = this.cycles;
+
+			cycles -=this.cycles;
 		}
+
+		return cycles;
 	};
 
-	this.LoopExe = function () {
-		// WIP
-		for (var i = 0; i < this.cyclesperframe; i ++) {
-			this.Step ();
-		}
+	this.LoopExe = function (extracycles) {
+		extracycles = this.Step (extracycles);
 
 		this.currentTimeout = setTimeout (() => {
-			cpu.LoopExe (); // Continue program loop
+			cpu.LoopExe (extracycles); // Continue program loop
 		}, this.interval);
 	};
 

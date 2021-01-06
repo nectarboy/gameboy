@@ -2,6 +2,9 @@ const Ppu = function (nes) {
 
 	var ppu = this;
 
+	var cpu = nes.cpu;
+	var mem = cpu.mem;
+
 	// =============== //	Basic Elements //
 
 	this.hblanking = 
@@ -14,8 +17,15 @@ const Ppu = function (nes) {
 		bg_tilemap_alt: false,
 		bg_window_start: false,
 		window_enabled: false,
-		window_tilemap_start: false,
+		window_tilemap_alt: false,
 		lcd_enabled: false
+	};
+
+	this.palshades = {
+		0: 0,
+		1: 0,
+		2: 0,
+		3: 0
 	};
 
 	// =============== //	Screen Elements //
@@ -42,16 +52,19 @@ const Ppu = function (nes) {
 
 	this.ctx = null;
 	this.img = null;
+	this.timeout = null;
+
+	this.interval = 1000 / 59.7; // GB refresh rate
 
 	this.ResetCtx = function (c) {
 		this.ctx = nes.canvas.getContext ('2d');
 		this.img = this.ctx.createImageData (gbwidth, gbheight);
 
-		this.clearImg ();
+		this.ClearImg ();
 	};
 
-	this.putPixel = function (ind, color) {
-		ind = ind * 4;
+	this.PutPixel = function (x, y, color) {
+		var ind = (y * gbwidth + x) * 4;
 
 		var img = this.img.data;
 		var pal = this.pallete [color];
@@ -62,14 +75,29 @@ const Ppu = function (nes) {
 		img [ind + 3] = 0xff; // Full opacity
 	};
 
-	this.renderImg = function () {
+	this.RenderImg = function () {
 		this.ctx.putImageData (this.img, 0, 0);
 	};
 
-	this.clearImg = function () {
-		for (var i = 0, l = this.img.data.length; i < l; i ++) {
-			this.putPixel (i, 0);
-		}
+	this.RenderLoop = function () {
+		this.RenderImg ();
+
+		// Handle callback
+		setTimeout (() => {
+			this.timeout = requestAnimationFrame (() => {
+				ppu.RenderLoop ();
+			});
+		}, this.interval);
+	};
+
+	this.StopRendering = function () {
+		cancelAnimationFrame (this.timeout);
+	};
+
+	this.ClearImg = function () {
+		for (var x = 0; x < gbwidth; x ++)
+			for (var y = 0; y < gbheight; y ++)
+				this.PutPixel (x, y, 0);
 	};
 
 	// Reset
@@ -85,8 +113,48 @@ const Ppu = function (nes) {
 		this.lcdc.bg_tilemap_alt = false;
 		this.lcdc.bg_window_start = false;
 		this.lcdc.window_enabled = false;
-		this.lcdc.window_tilemap_start = false;
+		this.lcdc.window_tilemap_alt = false;
 		this.lcdc.lcd_enabled = false;
+	};
+
+	// =============== //	Background Drawing //
+
+	// Scanline positions
+	this.lx = 
+	this.ly = 0;
+
+	// BG scroll positions
+	this.scrollx =
+	this.scrolly = 0;
+
+	this.subty = 0; // Used to decide which row of tile to render
+
+	this.Prepare = function () {
+		this.lx = 
+		this.ly = 0;
+
+		this.subty = 0; // Used to decide which row of tile to render
+	};
+
+	// Scanlining
+	this.DoScanline = function () {
+		if (!this.lcdc.lcd_enabled)
+			return;
+
+		// Draw background
+		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
+
+		// Vblanking
+		this.ly ++;
+
+		if (this.ly > 154)
+			this.Prepare (); // If vblank is over, prepare for next frame
+
+		this.vblanking = (this.ly > 143);
+		mem.ioreg [0x44] = this.ly; // Set LY io reg
+
+		// End
+		cpu.cycles += 114;
 	};
 
 };

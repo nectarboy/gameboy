@@ -18,19 +18,20 @@ const Gameboy = function () {
 		console.log ('started execution.');
 
 		// Start all components
-		this.cpu.LoopExe ();
+		this.cpu.LoopExe (0);
+		this.ppu.RenderLoop ();
 	};
 
 	this.Stop = function () {
 		this.cpu.StopExe ();
-		// Stop rest of components ...
+		this.ppu.StopRendering ();
 
 		console.log ('stopped execution.');
 	};
 
 	this.Reset = function () {
 		this.cpu.Reset ();
-		this.cpu.Reset ();
+		this.ppu.Reset ();
 	}
 
 	this.ReadRomFile = function (file) {

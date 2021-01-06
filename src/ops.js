@@ -53,7 +53,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			ops.checkZero (res);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		ADC_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -67,7 +67,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			ops.checkZero (res);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		ADC_a_n8: function () {
 			var byte = ops.Fetch (); // Byte after opcode
@@ -82,7 +82,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			ops.checkHcar (byte, reg.a);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		ADD_a_r8: function (r8) {
@@ -96,7 +96,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			ops.checkCar (sum);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		ADD_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -110,7 +110,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			ops.checkCar (sum);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		ADD_a_n8: function () {
 			var byte = ops.Fetch (); // Byte after opcode
@@ -124,7 +124,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			ops.checkCar (sum);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		ADD_hl_r16: function (r16) {
@@ -140,7 +140,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			ops.checkCar16 (sum);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		ADD_hl_sp: function () {
 			var hl = getReg16.hl ();
@@ -155,7 +155,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			ops.checkCar16 (sum);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		ADD_sp_e8: function () {
@@ -170,7 +170,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			ops.checkCar (sum);
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		AND_a_r8: function () {
@@ -181,7 +181,7 @@ const Ops = function (cpu) {
 			flag.hcar = true;
 			flag.car = false;
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		AND_a_hl: function (r8) {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -192,7 +192,7 @@ const Ops = function (cpu) {
 			flag.hcar = true;
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		AND_a_n8: function () {
 			var byte = ops.Fetch (); // Byte after opcode
@@ -203,7 +203,7 @@ const Ops = function (cpu) {
 			flag.hcar = true;
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		BIT_u3_r8: function (u3, r8) {
@@ -211,7 +211,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			flag.hcar = true;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		BIT_u3_r8: function (u3) {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -220,22 +220,24 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			flag.hcar = true;
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		
 		CALL_n16: function () {
-			var fulladdr = cpu.read16 (cpu.pc); // Get full address from instruction
+			var addr = cpu.read16 (cpu.pc); // Fetch full address
+			cpu.pc += 2;
 
-			cpu.pushSP (fulladdr); // Push the first addr into the stack
-			this.JP_n16 ();
+			cpu.pushSP (cpu.pc); // Push the pc (fetched) into the stack
 
-			cpu.cycles += 2; // 4 + 2
+			cpu.pc = addr - 1; // Jump to address
+
+			cpu.cycles += 24;
 		},
 		CALL_cc_n16: function (cc) {
 			if (cc)
 				return this.CALL_n16 ();
 
-			cpu.cycles += 3;
+			cpu.cycles += 12; // Untaken
 			cpu.pc += 2;
 		},
 
@@ -246,7 +248,7 @@ const Ops = function (cpu) {
 			flag.sub = false;
 			flag.hcar = false;
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		CP_a_r8: function (r8) {
@@ -257,7 +259,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, reg [r8]);
 			ops.checkSubCar (res, reg [r8]);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		CP_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -266,10 +268,10 @@ const Ops = function (cpu) {
 
 			ops.checkZero (res);
 			flag.sub = true;
-			ops.checkSubHcar (res, reg [r8]);
-			ops.checkSubCar (res, reg [r8]);
+			ops.checkSubHcar (res, reg.a);
+			ops.checkSubCar (res, reg.a);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		CP_a_n8: function () {
 			var byte = ops.Fetch ();
@@ -281,18 +283,18 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, reg.a);
 			ops.checkSubCar (res, reg.a);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		CPL: function () {
 			cpu.writeReg ('a', reg.a ^ 0xff); // Invert bits
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		DAA: function () {
 			// WIP
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		DEC_r8: function (r8) {
@@ -302,7 +304,7 @@ const Ops = function (cpu) {
 			flag.sub = true;
 			ops.checkSubHcar (res, reg [r8]);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		DEC_hl: function (r8) {
 			var hl = getReg16.hl ();
@@ -314,28 +316,28 @@ const Ops = function (cpu) {
 			flag.sub = true;
 			ops.checkSubHcar (res, byte);
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		DEC_r16: function (r16) {
 			cpu.writeReg16 [r16] (getReg16 [r16] () - 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		DEC_sp: function () {
 			cpu.writeSP (cpu.sp - 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		DI: function () {
 			cpu.ime = false; // Disable all interrupts
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		EI: function () {
 			cpu.ime = true; // Enable all interrupts
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		HALT: function () {
@@ -357,7 +359,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.sub = false;
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		INC_hl: function () {
 			var hl = getReg16.hl ();
@@ -371,30 +373,30 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.sub = false;
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		INC_r16: function (r16) {
-			cpu.writeReg16 [r16] (getReg16 [r16] + 1);
+			cpu.writeReg16 [r16] (getReg16 [r16] () + 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		INC_sp: function () {
 			cpu.writeSP (cpu.sp, cpu.sp + 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		JP_n16: function () {
 			var addr = cpu.read16 (cpu.pc);
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 			cpu.pc = addr - 1; // Sub 1 because it increments later, which we aint want
 		},
 		JP_cc_n16: function (cc) {
 			if (cc)
 				return this.JP_n16 ();
 
-			cpu.cycles += 3; // Untaken
+			cpu.cycles += 12; // Untaken
 			cpu.pc += 2;
 		},
 		JP_hl: function () {
@@ -406,61 +408,61 @@ const Ops = function (cpu) {
 
 			cpu.pc = (cpu.pc + e8) & 0xffff;
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		JR_cc_e8: function (cc) {
 			if (cc)
 				return this.JR_e8 ();
 
-			cpu.cycles += 2; // Untaken
+			cpu.cycles += 8; // Untaken
 			cpu.pc += 1;
 		},
 
 		LD_r8_r8: function (rx, ry) {
 			cpu.writeReg (rx, reg [ry]);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		LD_r8_n8: function (r8) {
 			var byte = ops.Fetch ();
 			cpu.writeReg (r8, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_r16_n16: function (r16) {
 			var chunk = cpu.read16 (cpu.pc);
 			cpu.writeReg16 [r16] (chunk);
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 			cpu.pc += 2;
 		},
 		LD_hl_r8: function (r8) {
 			cpu.writeByte (getReg16.hl (), reg [r8]);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_hl_n8: function () {
 			var byte = ops.Fetch ();
 			cpu.writeByte (getReg16.hl (), byte);
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		LD_r8_hl: function (r8) {
 			var byte = cpu.readByte (getReg16.hl ());
 			cpu.writeReg (r8, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_r16_a: function (r16) {
 			cpu.writeByte (getReg16 [r16] (), reg.a);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_n16_a: function () {
 			var chunk = cpu.read16 (cpu.pc);
 			cpu.writeByte (chunk, reg.a);
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 			cpu.pc += 2;
 		},
 
@@ -469,38 +471,38 @@ const Ops = function (cpu) {
 
 			cpu.writeByte (0xff00 + byte, reg.a);
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		LDH_c_a: function () {
 			cpu.writeByte (0xff00 + reg.c, reg.a);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		LD_a_r16: function (r16) {
 			var byte = cpu.readByte (getReg16 [r16] ());
 			cpu.writeReg ('a', byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_a_n16: function () {
 			var byte = cpu.readByte (cpu.read16 (cpu.pc)); // Byte pointed to by address
 			cpu.writeReg ('a', byte);
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 			cpu.pc += 2;
 		},
 		LDH_a_n8: function () {
 			var byte = cpu.readByte (0xff00 + ops.Fetch ()); // Byte pointed to by io adress + n8
 			cpu.writeReg ('a', byte);
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		LDH_a_c: function () {
 			var byte = cpu.readByte (0xff00 + reg.c); // Byte pointed to by io adress + reg c
 			cpu.writeReg ('a', byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		LD_hli_a: function () {
@@ -509,7 +511,7 @@ const Ops = function (cpu) {
 			cpu.writeByte (hl, reg.a);
 			cpu.writeReg16.hl (hl + 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_hld_a: function () {
 			var hl = getReg16.hl ();
@@ -517,7 +519,7 @@ const Ops = function (cpu) {
 			cpu.writeByte (hl, reg.a);
 			cpu.writeReg16.hl (hl - 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_a_hld: function () {
 			var hl = getReg16.hl ();
@@ -525,7 +527,7 @@ const Ops = function (cpu) {
 			cpu.writeReg (reg.a, hl);
 			cpu.writeReg16.hl (hl - 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		LD_a_hli: function () {
 			var hl = getReg16.hl ();
@@ -533,13 +535,13 @@ const Ops = function (cpu) {
 			cpu.writeReg (reg.a, hl);
 			cpu.writeReg16.hl (hl + 1);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		LD_sp_n16: function () {
 			cpu.writeSP (cpu.read16 (cpu.pc)); // Byte after opcode
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 			cpu.pc += 2;
 		},
 
@@ -547,7 +549,7 @@ const Ops = function (cpu) {
 			var addr = cpu.read16 (cpu.pc);
 			cpu.write16 (addr, cpu.sp);
 
-			cpu.cycles += 5;
+			cpu.cycles += 20;
 			cpu.pc += 2;
 		},
 
@@ -564,17 +566,17 @@ const Ops = function (cpu) {
 			flag.hcar = ((e8 & 0x3) + (cpu.sp & 0x3)) > 0x3;
 			flag.car = ((e8 & 0x7) + (cpu.sp & 0x7)) > 0x7;
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 
 		LD_sp_hl: function () {
 			cpu.writeSP (getReg16.hl ());
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		NOP: function () {
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		OR_a_r8: function (r8) {
@@ -585,7 +587,7 @@ const Ops = function (cpu) {
 			flag.hcar = false;
 			flag.car = false;
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		OR_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -596,7 +598,7 @@ const Ops = function (cpu) {
 			flag.hcar = false;
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		OR_a_n8: function () {
 			var byte = ops.Fetch ();
@@ -607,7 +609,7 @@ const Ops = function (cpu) {
 			flag.hcar = false;
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		POP_af: function () {
@@ -617,37 +619,37 @@ const Ops = function (cpu) {
 			var lobyte = this.writeReg ('f', (chunk & 0xf0)); // Get low byte
 
 			// Correct Flags
-			flag.zero 	= lobyte & (1 << 7) ? true : false;
-			flag.sub 	= lobyte & (1 << 6) ? true : false;
-			flag.car 	= lobyte & (1 << 5) ? true : false;
-			flag.hcar 	= lobyte & (1 << 4) ? true : false;
+			flag.zero 	= lobyte & (1 << 7) !== 0;
+			flag.sub 	= lobyte & (1 << 6) !== 0;
+			flag.car 	= lobyte & (1 << 5) !== 0;
+			flag.hcar 	= lobyte & (1 << 4) !== 0;
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 		POP_r16: function (r16) {
 			cpu.writeReg16 [r16] (cpu.popSP ());
 
-			cpu.cycles += 3;
+			cpu.cycles += 12;
 		},
 
 		PUSH_af: function () {
 			var hi = reg.a;
 			var lo = (flag.zero << 7) | (flag.sub << 6) | (flag.car << 5) | (flag.hcar << 4);
 
-			cpu.pushSP (cpu.writeReg16 ('af', (hi << 8) | lo)); // Combine hi and lo bytes into reg af
+			cpu.pushSP (cpu.writeReg16 ['af'] ((hi << 8) | lo)); // Combine hi and lo bytes into reg af
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 		PUSH_r16: function (r16) {
 			cpu.pushSP (getReg16 [r16] ());
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		RES_u3_r8: function (u3, r8) {
 			cpu.writeReg (r8, reg [r8] & ~(1 << u3)); // Clear bit u3 in r8
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		RES_u3_hl: function (u3) {
 			var hl = getReg16.hl ();
@@ -656,14 +658,14 @@ const Ops = function (cpu) {
 
 			cpu.writeByte (hl, byte & ~(1 << u3)); // Clear bit u3 in byte hl
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 			cpu.pc += 1;
 		},
 
 		RET: function () {
-			cpu.pc = cpu.popSP (); // Jump to instruction after the call
+			cpu.pc = cpu.popSP (); // Jump to instruction pushed by the call
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 		RET_cc: function (cc) {
 			if (cc) {
@@ -671,7 +673,7 @@ const Ops = function (cpu) {
 				return this.cycles += 1; // Extra cycle
 			}
 
-			cpu.cycles += 2; // Untaken
+			cpu.cycles += 8; // Untaken
 		},
 		RETI: function () {
 			this.RET ();
@@ -690,7 +692,7 @@ const Ops = function (cpu) {
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		RL_hl: function () {
 			var hl = getReg16.hl ();
@@ -705,7 +707,7 @@ const Ops = function (cpu) {
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 		RLA: function () {
 			var precar = flag.car;
@@ -715,7 +717,7 @@ const Ops = function (cpu) {
 
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		RLC_r8: function (r8) {
@@ -726,7 +728,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		RLC_hl: function () {
 			var hl = getReg16.hl ();
@@ -739,7 +741,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 		RLCA: function () {
 			var res = cpu.writeReg ('a', (reg.a << 1) | (reg.a >> 7)); // Rotate reg a left
@@ -748,7 +750,7 @@ const Ops = function (cpu) {
 			flag.car = (res & 1) !== 0;
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		// Rotate Right INS //
@@ -762,7 +764,7 @@ const Ops = function (cpu) {
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		RR_hl: function () {
 			var hl = getReg16.hl ();
@@ -777,7 +779,7 @@ const Ops = function (cpu) {
 
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 		RRA: function () {
 			var precar = flag.car;
@@ -787,7 +789,7 @@ const Ops = function (cpu) {
 
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		RRC_r8: function (r8) {
@@ -798,7 +800,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		RRC_hl: function () {
 			var hl = getReg16.hl ();
@@ -811,7 +813,7 @@ const Ops = function (cpu) {
 			ops.checkZero (res);
 			flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 			cpu.pc += 1;
 		},
 		RRCA: function () {
@@ -821,7 +823,7 @@ const Ops = function (cpu) {
 			flag.car = (res & 1) !== 0; // Carry is lsb
 			flag.zero = flag.hcar = flag.sub = false; // Clear remaining flags
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		RST_vec: function (vec) {
@@ -843,7 +845,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, byte); 
 			ops.checkSubCar (res, byte);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		SBC_a_hl: function () {
 			var byte = (cpu.readByte (getReg16.hl ()) + flag.car) & 0xff;
@@ -855,7 +857,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, byte); 
 			ops.checkSubCar (res, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SBC_a_n8: function () {
 			var byte = (ops.Fetch () + flag.car) & 0xff;
@@ -867,7 +869,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, byte); 
 			ops.checkSubCar (res, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		SCF: function () {
@@ -876,13 +878,13 @@ const Ops = function (cpu) {
 			// Clear some other flags
 			flag.hcar = flag.sub = false;
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 
 		SET_u3_r8: function (u3, r8) {
 			cpu.writeReg (r8, reg [r8] | (1 << u3)); // Set bit u3 in reg r8
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SET_u3_hl: function (u3) {
 			var hl = getReg16.hl ();
@@ -890,7 +892,7 @@ const Ops = function (cpu) {
 			var byte = cpu.readByte (hl); // Get current byte hl
 			cpu.writeByte (hl, byte | (1 << u3)); // Set bit u3 in byte hl
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		SLA_r8: function (r8) {
@@ -901,7 +903,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SLA_hl: function () {
 			var hl = getReg16.hl ();
@@ -915,7 +917,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		SRA_r8: function (r8) {
@@ -926,7 +928,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SRA_hl: function () {
 			var hl = getReg16.hl ();
@@ -940,7 +942,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		SRL_r8: function (r8) {
@@ -951,7 +953,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SRL_hl: function () {
 			var hl = getReg16.hl ();
@@ -965,7 +967,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		STOP: function () {
@@ -985,7 +987,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, prer8);
 			ops.checkSubCar (res, prer8);
 
-			cpu.cycles += 1;
+			cpu.cycles += 4;
 		},
 		SUB_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -997,7 +999,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, byte);
 			ops.checkSubCar (res, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SUB_a_n8: function () {
 			var byte = ops.Fetch ();
@@ -1009,7 +1011,7 @@ const Ops = function (cpu) {
 			ops.checkSubHcar (res, byte);
 			ops.checkSubCar (res, byte);
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 
 		SWAP_r8: function (r8) {
@@ -1020,7 +1022,7 @@ const Ops = function (cpu) {
 			flag.hcar = 
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		},
 		SWAP_hl: function (hl) {
 			var hl = getReg16.hl ();
@@ -1034,7 +1036,7 @@ const Ops = function (cpu) {
 			flag.hcar = 
 			flag.car = false;
 
-			cpu.cycles += 4;
+			cpu.cycles += 16;
 		},
 
 		XOR_a_r8: function (r8) {
@@ -1045,7 +1047,7 @@ const Ops = function (cpu) {
 			flag.hcar = 
 			flag.car = false;
 
-			cpu.cycles += 1;	
+			cpu.cycles += 4;	
 		},
 		XOR_a_hl: function () {
 			var byte = cpu.readByte (getReg16.hl ());
@@ -1057,7 +1059,7 @@ const Ops = function (cpu) {
 			flag.hcar = 
 			flag.car = false;
 
-			cpu.cycles += 2;	
+			cpu.cycles += 8;	
 		},
 		XOR_a_n8: function () {
 			var byte = ops.Fetch ();
@@ -1069,7 +1071,7 @@ const Ops = function (cpu) {
 			flag.hcar = 
 			flag.car = false;
 
-			cpu.cycles += 2;
+			cpu.cycles += 8;
 		}
 
 	};
@@ -1157,15 +1159,19 @@ const Ops = function (cpu) {
 			case 0x22:
 				return this.INS.LD_hli_a ();
 			case 0x23:
-				return this.INS.INC_hl ();
+				return this.INS.INC_r16 ('hl');
 			case 0x28:
 				return this.INS.JR_cc_e8 (flag.zero);
+			case 0x2e:
+				return this.INS.LD_r8_n8 ('l');
 
 			// 0 x 3 0
 			case 0x31:
 				return this.INS.LD_sp_n16 ();
 			case 0x32:
 				return this.INS.LD_hld_a ();
+			case 0x34:
+				return this.INS.INC_hl ();
 			case 0x3d:
 				return this.INS.INC_r8 ('a');
 			case 0x3e:
@@ -1195,13 +1201,29 @@ const Ops = function (cpu) {
 			case 0xaf:
 				return this.INS.XOR_a_r8 ('a');
 
+			// 0 x 4 0
+			case 0x4f:
+				return this.INS.LD_r8_r8 ('c', 'a');
+
+			// 0 x 5 0
+			case 0x57:
+				return this.INS.LD_r8_r8 ('d', 'a');
+
+			// 0 x 6 0
+			case 0x67:
+				return this.INS.LD_r8_r8 ('h', 'a');
+
 			// 0 x C 0
 			case 0xc1:
 				return this.INS.POP_r16 ('bc');
 			case 0xc5:
 				return this.INS.PUSH_r16 ('bc');
+			case 0xc9:
+				return this.INS.RET ();
 			case 0xcd:
 				return this.INS.CALL_n16 ();
+			case 0xce:
+				return this.ADC_a_n8 ();
 
 			// 0 x E 0
 			case 0xe0:
@@ -1212,6 +1234,8 @@ const Ops = function (cpu) {
 				return this.INS.LD_n16_a ();
 
 			// 0 x F 0
+			case 0xf0:
+				return this.INS.LDH_a_n8 ();
 			case 0xfe:
 				return this.INS.CP_a_n8 ();
 			
@@ -1256,16 +1280,14 @@ const Ops = function (cpu) {
 		else {
 			this.Decode (opcode);
 		}
-
-		this.InvOp (opcode);
 	};
 
 	// Debug
 	this.InvOp = function (opcode) {
-		console.log (
+		cpu.Panic (
 			'INVop\n' +
-			'OP:', opcode.toString (16) + '\n' +
-			'PC:', cpu.pc.toString (16)
+			'OP: ' + opcode.toString (16) + '\n' +
+			'PC: ' + cpu.pc.toString (16)
 		);
 	};
 
