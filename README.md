@@ -1,8 +1,8 @@
-# Pollen GB - my gameboy emulator !
+# Pollen Boy - my gameboy emulator !
 
 ## Intro
 
-pollen gb is a gameboy emulator made in javascript.
+pollen boy is a gameboy emulator made in javascript.
 it is still a heavy WIP, and rn is basically doing nothing yet while i build the basics on it.
 if you wanna peek through that code tho spare a man sum feedback pls i could be doing something completely wrong n i wouldnt know
 
