@@ -2,13 +2,19 @@ const Gameboy = function () {
 
 	var gb = this;
 
-	// Frontend elements
 	this.canvas = null;
 
 	// =============== // 	Components //
 
 	this.cpu = new Cpu (this);
 	this.ppu = new Ppu (this);
+
+	// =============== //	Settings //
+
+	this.settings = {
+		enable_bootrom: bool => gb.cpu.bootrom_enabled = bool,
+		set_pitchshift: num => num,
+	};
 
 	// =============== // 	Functions //
 
@@ -34,19 +40,13 @@ const Gameboy = function () {
 		this.ppu.Reset ();
 	}
 
-	this.ReadRomFile = function (file) {
-		if (!file) {
-			var msg = '(Invalid rom file!)';
-
-			alert (msg);
-			throw msg;
-		}
-
+	this.ReadRomFile = function (file, then) {
 		console.log ('loading rom...');
 
 		var fr = new FileReader ();
 		fr.onload = function () {
 			gb.cpu.mem.LoadRom (fr.result); // Load Rom
+			then (); // And then ...
 		};
 		fr.readAsArrayBuffer (file);
 	};

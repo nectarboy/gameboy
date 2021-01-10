@@ -29,14 +29,8 @@ const Cpu = function (nes) {
 
 	this.ime = false;
 
-	// Rom properties
 	this.hasrom = false;
-
-	this.rombank = 1;
-	this.rambank = 1;
-
-	this.mbc = 0;
-	this.ramenabled = false;
+	this.bootrom_enabled = true;
 
 	// =============== //	Registers and Flags //
 
@@ -45,7 +39,7 @@ const Cpu = function (nes) {
 	this.cycles = 0;
 
 	// Stack
-	this.sp = 0xfffe; // Stack pointer (0xfffe is placeholder)
+	this.sp = 0x0000; // Stack pointer
 
 	this.writeSP = function (addr) {
 		this.sp = addr & 0xffff; // Mask to 16bit int
@@ -148,7 +142,7 @@ const Cpu = function (nes) {
 		if (addr < 0x8000) {
 			if (!this.hasrom)
 				return 0xff;
-			return mem.cartrom [this.rombank * 0x4000 + (addr & 0x3fff)];
+			return mem.cartrom [addr];
 		}
 		// VIDEO //
 		if (addr < 0xa000) {
@@ -249,12 +243,13 @@ const Cpu = function (nes) {
 
 		return (lo << 8) | hi; // Mask to 16bit int
 	};
-	/*this.write16 = function (addr, val) {
-		cpu.writeByte (addr, ((val & 0xff00) >> 8)); //  Get high byte
-		cpu.writeByte (addr + 1, (val & 0xff)); // Get low byte
+	this.read16alt = function (addr) {
+		var hi = this.readByte (addr); //  Get high byte
+		var lo = this.readByte (addr + 1); //  Get low byte
 
-		return val & 0xffff;
-	};*/
+		return (hi << 8) | lo; // Mask to 16bit int
+	};
+
 	this.write16 = function (addr, val) {
 		cpu.writeByte (addr, (val & 0xff)); // Get low byte
 		cpu.writeByte (addr + 1, ((val & 0xff00) >> 8)); //  Get high byte
@@ -305,44 +300,66 @@ const Cpu = function (nes) {
 
 	// Reset
 	this.Reset = function () {
-		// Reset registers
-		this.reg.a = 
-		this.reg.b =
-		this.reg.c =
-		this.reg.d =
-		this.reg.e =
-		this.reg.f =
-		this.reg.h =
-		this.reg.l = 0;
-
 		// Reset flags
 		this.flag.zero =
 		this.flag.sub =
 		this.flag.hcar =
 		this.flag.car = false;
 
-		// Reset program
-		this.pc = 0x0000;
 		this.cycles = 0;
-		this.sp = 0xfffe; // PH
 
-		this.bootromAtm = true;
 		this.lowpower = false;
 		this.ime = false;
 
-		// Reset rom 
-		this.rombank = 1;
-		this.rambank = 1;
+		// Reset memory
+		this.mem.Reset ();
 
-		this.mbc = 0;
-		this.ramenabled = false;
+		// BOOTROM ENABLED CHANGES - this sentecne makes no sence ik shut up shut up shut up
+		if (this.bootrom_enabled) {
+			// Reset registers
+			this.writeReg16.af (0x0000);
+			this.writeReg16.bc (0x0000);
+			this.writeReg16.de (0x0000);
+			this.writeReg16.hl (0x0000);
 
+			this.pc = 0x0000;
+			this.sp = 0x0000;
+
+			this.bootromAtm = true;
+		}
+		else {
+			this.Bootstrap (); // Manually bootstrap
+		}
+	};
+
+	this.Bootstrap = function () {
+		// Set registers to values occur in bootrom
+		this.writeReg16.af (0x01b0);
+		this.writeReg16.bc (0x0013);
+		this.writeReg16.de (0x00de);
+		this.writeReg16.hl (0x014d);
+
+		this.pc = 0x0100;
+		this.sp = 0xfffe;
+
+		this.bootromAtm = false;
 	};
 
 	// =============== //	Debugging //
 
-	this.Memdump = function () {
-		console.log (this.mem);
+	this.Memdump = function (mem) {
+		mem = this.mem [mem];
+
+		var str = '';
+		for (var i = 0; i < mem.length; i ++) {
+			if (i && i % 16 === 0)
+				str += '\n';
+			str += ('0' + mem [i].toString (16)).slice (-2) + ' ';
+		}
+
+		// Open popup
+		var win = window.open("", "Title", "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=400,height=400,top="+(screen.height/2)+",left="+(screen.width/2));
+		win.document.body.innerHTML = '<pre>' + str + '</pre>';
 	};
 
 	this.Panic = function (err) {

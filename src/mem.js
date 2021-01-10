@@ -10,6 +10,17 @@ const Mem = function (nes) {
 	// Cartrom - 0x0000 - 0x8000 (last 0x4000 switchable)
 	this.cartrom = new Uint8Array (0x8000);
 
+		// Rom properties
+		this.mbc = 0;
+
+		this.romname = '';
+		this.maxrombanks = 0;
+		this.rombank = 1;
+
+		this.ramenabled = false;
+		this.maxrambanks = 0;
+		this.rambank = 1;
+
 	// Video - 0x8000 - 0x9fff
 	this.vram = new Uint8Array (0x2000); // 8KB of video ram
 
@@ -37,6 +48,9 @@ const Mem = function (nes) {
 	// =============== //	Loading and Resetting //
 
 	this.LoadRom = function (rom) {
+		if (typeof rom !== 'object')
+			return this.Error ('this is not a rom !');
+
 		this.cartrom = new Uint8Array (rom);
 		this.GetRomProps ();
 
@@ -45,16 +59,147 @@ const Mem = function (nes) {
 
 	this.GetRomProps = function () {
 		// Rom name //
-		var str = '';
+		this.romname = '';
 		for (var i = 0x134; i < 0x13f; i ++) {
-			str += String.fromCharCode (mem.cartrom [i]);
+			this.romname += String.fromCharCode (mem.cartrom [i]);
 		}
-		document.title = 'Pollen Boy - ' + str;
+		document.title = 'Pollen Boy - ' + this.romname;
+
+		// GBC only mode //
+		if (mem.cartrom [0x143] === 0xc0)
+			this.Error ('rom works only on gameboy color !');
+
+		// Check MBC //
+		switch (mem.cartrom [0x147]) {
+			// No MBC + ram
+			case 0x8:
+			case 0x9: {
+				this.ramenabled = true;
+			}
+			// No MBC
+			case 0x0: {
+				this.mbc = 0;
+				this.ramenabled = false;
+				break;
+			}
+
+			// MBC 1 + ram
+			case 0x3:
+			case 0x2: {
+				this.ramenabled = true;
+			}
+			// MBC 1
+			case 0x1: {
+				this.mbc = 1;
+				break;
+			}
+
+			// MBC 2
+			case 0x6:
+			case 0x5: {
+				this.mbc = 2;
+				break;
+			}
+
+			// MBC 3 + ram
+			case 0x13:
+			case 0x12:
+			case 0x10: {
+				this.ramenabled = true;
+			}
+			// MBC 3
+			case 0x11:
+			case 0xf: {
+				this.mbc = 3;
+				break;
+			}
+
+			// MBC 5 + ram
+			case 0x1e:
+			case 0x1d:
+			case 0x1b:
+			case 0x1a: {
+				this.ramenabled = true;
+			}
+			// MBC 5
+			case 0x1c:
+			case 0x19: {
+				this.mbc = 5;
+				break;
+			}
+
+			default: {
+				this.Error ('unknown rom MBC type !');
+			}
+		}
+
+		// Max rom banks
+		var romsize = mem.cartrom [0x148];
+
+		if (romsize > 8) {
+			if (romsize === 0x54)
+				this.maxrombanks = 96;
+			else if (this.romsize === 0x53)
+				this.maxrombanks = 80;
+			else if (this.romsize === 0x52)
+				this.maxrombanks = 72;
+			else
+				this.Error ('invalid rom size !');
+		}
+		else {
+			this.rombanks = 2 << romsize;
+		}
+
+		// Max ram banks
+		var ramsize = mem.cartram [0x149];
+
+		if (ramsize > 0 && ramsize < 5) {
+			this.cartram = Math.floor ((1 << (ramsize * 2 - 1)) / 8);
+		}
+		else {
+			if (ramsize === 0x5)
+				this.maxrambanks = 8;
+			else if (ramsize === 0x0)
+				this.maxrambanks = 0;
+			else
+				this.Error ('invalid ram size !');
+		}
+	};
+
+	this.Reset = function () {
+		// Reset all memory pies to 0
+		this.vram.fill (0);
+		this.wram.fill (0);
+		this.oam.fill (0);
+		this.ioreg.fill (0);
+		this.hram.fill (0);
+		this.iereg = 0;
+
+		// Reset rom properties
+		this.mbc = 0;
+		this.rombank = 1;
+		this.rambank = 1;
+		this.ramenabled = false;
+	};
+
+	this.Error = function (msg) {
+		alert (msg);
+		throw msg;
 	};
 
 	// =============== //	IO Registers //
 
 	this.ioonwrite = {
+		// Serial Ports - used by test roms for output
+		[0x01]: function (val) {
+			mem.ioreg [0x01] = val;
+			console.log ('01: ' + val.toString (16));
+		},
+		[0x02]: function (val) {
+			mem.ioreg [0x02] = val;
+			console.log ('02: ' + val.toString (16));
+		},
+
 		// Div timer - incs every 256 cycles
 		[0x04]: function (val) {
 			mem.ioreg [0x04] = 0; // Reset
@@ -113,6 +258,7 @@ const Mem = function (nes) {
 
 	// =============== //	MBC Elements //
 
+	// TODO - import rom properties from cpu to here
 	this.mbcControl = {
 		1: function (addr) {
 			// EXTRA RAM ENABLE //

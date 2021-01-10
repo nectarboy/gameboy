@@ -390,7 +390,7 @@ const Ops = function (cpu) {
 			var addr = cpu.read16 (cpu.pc);
 
 			cpu.cycles += 16;
-			cpu.pc = addr - 1; // Sub 1 because it increments later, which we aint want
+			cpu.pc = addr; // Sub 1 because it increments later, which we aint want
 		},
 		JP_cc_n16: function (cc) {
 			if (cc)
@@ -400,7 +400,7 @@ const Ops = function (cpu) {
 			cpu.pc += 2;
 		},
 		JP_hl: function () {
-			cpu.pc = getReg16.hl () - 1; // Sub 1 because it increments later, which we aint want
+			cpu.pc = getReg16.hl (); // Sub 1 because it increments later, which we aint want
 		},
 
 		JR_e8: function () {
@@ -431,10 +431,11 @@ const Ops = function (cpu) {
 		},
 		LD_r16_n16: function (r16) {
 			var chunk = cpu.read16 (cpu.pc);
+			cpu.pc += 2;
+
 			cpu.writeReg16 [r16] (chunk);
 
 			cpu.cycles += 12;
-			cpu.pc += 2;
 		},
 		LD_hl_r8: function (r8) {
 			cpu.writeByte (getReg16.hl (), reg [r8]);
@@ -460,10 +461,11 @@ const Ops = function (cpu) {
 		},
 		LD_n16_a: function () {
 			var chunk = cpu.read16 (cpu.pc);
+			cpu.pc += 2;
+
 			cpu.writeByte (chunk, reg.a);
 
 			cpu.cycles += 16;
-			cpu.pc += 2;
 		},
 
 		LDH_n8_a: function () {
@@ -487,10 +489,11 @@ const Ops = function (cpu) {
 		},
 		LD_a_n16: function () {
 			var byte = cpu.readByte (cpu.read16 (cpu.pc)); // Byte pointed to by address
+			cpu.pc += 2;
+
 			cpu.writeReg ('a', byte);
 
 			cpu.cycles += 16;
-			cpu.pc += 2;
 		},
 		LDH_a_n8: function () {
 			var byte = cpu.readByte (0xff00 + ops.Fetch ()); // Byte pointed to by io adress + n8
@@ -540,17 +543,17 @@ const Ops = function (cpu) {
 
 		LD_sp_n16: function () {
 			cpu.writeSP (cpu.read16 (cpu.pc)); // Byte after opcode
+			cpu.pc += 2;
 
 			cpu.cycles += 12;
-			cpu.pc += 2;
 		},
 
 		LD_n16_sp: function () {
 			var addr = cpu.read16 (cpu.pc);
+			cpu.pc += 2;
 			cpu.write16 (addr, cpu.sp);
 
 			cpu.cycles += 20;
-			cpu.pc += 2;
 		},
 
 		LD_hl_spe8: function () {
@@ -615,8 +618,8 @@ const Ops = function (cpu) {
 		POP_af: function () {
 			var chunk = cpu.popSP ();
 
-			this.writeReg ('a', ((chunk & 0xff00) >> 8)); //  Get high byte
-			var lobyte = this.writeReg ('f', (chunk & 0xf0)); // Get low byte
+			cpu.writeReg ('a', ((chunk & 0xff00) >> 8)); //  Get high byte
+			var lobyte = cpu.writeReg ('f', (chunk & 0xf0)); // Get low byte
 
 			// Correct Flags
 			flag.zero 	= lobyte & (1 << 7) !== 0;
@@ -1162,24 +1165,84 @@ const Ops = function (cpu) {
 				return this.INS.INC_r16 ('hl');
 			case 0x28:
 				return this.INS.JR_cc_e8 (flag.zero);
+			case 0x2a:
+				return this.INS.LD_a_hli ();
 			case 0x2e:
 				return this.INS.LD_r8_n8 ('l');
 
 			// 0 x 3 0
+			case 0x30:
+				return this.INS.JR_cc_e8 (!flag.car);
 			case 0x31:
 				return this.INS.LD_sp_n16 ();
 			case 0x32:
 				return this.INS.LD_hld_a ();
 			case 0x34:
 				return this.INS.INC_hl ();
+			case 0x3c:
+				return this.INS.INC_r8 ('a');
 			case 0x3d:
 				return this.INS.INC_r8 ('a');
 			case 0x3e:
 				return this.INS.LD_r8_n8 ('a');
 
+			// 0 x 4 0
+			case 0x46:
+				return this.INS.LD_r8_hl ('b');
+			case 0x47:
+				return this.INS.LD_r8_r8 ('b', 'a');
+			case 0x4f:
+				return this.INS.LD_r8_r8 ('c', 'a');
+
+			// 0 x 5 0
+			case 0x57:
+				return this.INS.LD_r8_r8 ('d', 'a');
+			case 0x5f:
+				return this.INS.LD_r8_r8 ('e', 'a');
+
+			// 0 x 6 0
+			case 0x60:
+				return this.INS.LD_r8_r8 ('h', 'b');
+			case 0x61:
+				return this.INS.LD_r8_r8 ('h', 'c');
+			case 0x61:
+				return this.INS.LD_r8_r8 ('h', 'd');
+			case 0x63:
+				return this.INS.LD_r8_r8 ('h', 'e');
+			case 0x64:
+				return this.INS.LD_r8_r8 ('h', 'h');
+			case 0x65:
+				return this.INS.LD_r8_r8 ('h', 'l');
+			case 0x61:
+				return this.INS.LD_r8_hl ('h');
+			case 0x67:
+				return this.INS.LD_r8_r8 ('h', 'a');
+			case 0x68:
+				return this.INS.LD_r8_r8 ('l', 'b');
+			case 0x69: // funy
+				return this.INS.LD_r8_r8 ('l', 'c');
+			case 0x6c:
+				return this.INS.LD_r8_r8 ('l', 'h');
+			case 0x6e:
+				return this.INS.LD_r8_hl ('l');
+
 			// 0 x 7 0
+			case 0x70:
+				return this.INS.LD_hl_r8 ('b');
+			case 0x71:
+				return this.INS.LD_hl_r8 ('c');
+			case 0x72:
+				return this.INS.LD_hl_r8 ('d');
+			case 0x73:
+				return this.INS.LD_hl_r8 ('e');
+			case 0x74:
+				return this.INS.LD_hl_r8 ('h');
+			case 0x75:
+				return this.INS.LD_hl_r8 ('l');
 			case 0x77:
 				return this.INS.LD_hl_r8 ('a');
+			case 0x78:
+				return this.INS.LD_r8_r8 ('a', 'b');
 			case 0x7b:
 				return this.INS.LD_r8_r8 ('a', 'e');
 
@@ -1201,43 +1264,59 @@ const Ops = function (cpu) {
 			case 0xaf:
 				return this.INS.XOR_a_r8 ('a');
 
-			// 0 x 4 0
-			case 0x4f:
-				return this.INS.LD_r8_r8 ('c', 'a');
-
-			// 0 x 5 0
-			case 0x57:
-				return this.INS.LD_r8_r8 ('d', 'a');
-
-			// 0 x 6 0
-			case 0x67:
-				return this.INS.LD_r8_r8 ('h', 'a');
-
 			// 0 x C 0
+			case 0xc0:
+				return this.INS.RET_cc (!flag.zero);
 			case 0xc1:
 				return this.INS.POP_r16 ('bc');
+			case 0xc3:
+				return this.INS.JP_n16 ();
 			case 0xc5:
 				return this.INS.PUSH_r16 ('bc');
+			case 0xc8:
+				return this.INS.RET_cc (flag.zero);
 			case 0xc9:
 				return this.INS.RET ();
 			case 0xcd:
 				return this.INS.CALL_n16 ();
 			case 0xce:
-				return this.ADC_a_n8 ();
+				return this.INS.ADC_a_n8 ();
+
+			// 0 x D 0
+			case 0xd0:
+				return this.INS.RET_cc (!flag.car);
+			case 0xd6:
+				return this.INS.SUB_a_n8 ();
+			case 0xd8:
+				return this.INS.RET_cc (flag.car);
 
 			// 0 x E 0
 			case 0xe0:
 				return this.INS.LDH_n8_a ();
+			case 0xe1:
+				return this.INS.POP_r16 ('hl');
 			case 0xe2:
 				return this.INS.LDH_c_a ();
+			case 0xe5:
+				return this.INS.PUSH_r16 ('hl');
+			case 0xe6:
+				return this.INS.AND_a_n8 ();
 			case 0xea:
 				return this.INS.LD_n16_a ();
 
 			// 0 x F 0
 			case 0xf0:
 				return this.INS.LDH_a_n8 ();
+			case 0xf1:
+				return this.INS.POP_af ();
+			case 0xf3:
+				return this.INS.DI ();
+			case 0xf5:
+				return this.INS.PUSH_af ();
 			case 0xfe:
 				return this.INS.CP_a_n8 ();
+			case 0xff:
+				return this.INS.RST_vec (0x38);
 			
 			// INVALID OPCODE - PANIC ! ! !
 			default:
@@ -1280,6 +1359,12 @@ const Ops = function (cpu) {
 		else {
 			this.Decode (opcode);
 		}
+
+		/*console.log (
+			'INVop\n' +
+			'OP: ' + opcode.toString (16) + '\n' +
+			'PC: ' + cpu.pc.toString (16)
+		);*/
 	};
 
 	// Debug

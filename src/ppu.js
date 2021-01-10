@@ -7,9 +7,6 @@ const Ppu = function (nes) {
 
 	// =============== //	Basic Elements //
 
-	this.hblanking = 
-	this.vblanking = false;
-
 	this.lcdc = {
 		bg_priority: false,
 		sprite_enabled: false,
@@ -30,8 +27,8 @@ const Ppu = function (nes) {
 
 	// =============== //	Screen Elements //
 
-	var gbwidth = 160;
-	var gbheight = 144;
+	var gbwidth = 256; // 160
+	var gbheight = 144; // 144
 
 	this.pallete = {
 		0: {
@@ -129,28 +126,70 @@ const Ppu = function (nes) {
 
 	this.subty = 0; // Used to decide which row of tile to render
 
-	this.Prepare = function () {
-		this.lx = 
-		this.ly = 0;
-
-		this.subty = 0; // Used to decide which row of tile to render
-	};
-
 	// Scanlining
 	this.DoScanline = function () {
 		if (!this.lcdc.lcd_enabled)
 			return;
 
 		// Draw background
+
+		/*this.subty = this.ly & 7;
+
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
+
+		var bgmapstart = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
+		var bgmapend = bgmapstart + 0xa0;
+
+		for (var i = bgmapstart; i < bgmapend; i ++) {
+			var tile = cpu.readByte (i);
+			var data = cpu.read16 (bgdatastart + (tile * 16) + (this.subty * 2));
+
+			for (var ii = 0; ii < 8; ii ++) {
+				var px = this.palshades [(data >> (ii * 2)) & 0x3];
+				this.PutPixel (this.lx, this.ly, px);
+			}
+
+			this.lx ++;
+		}*/
 
 		// Vblanking
 		this.ly ++;
 
-		if (this.ly > 154)
-			this.Prepare (); // If vblank is over, prepare for next frame
+		this.ly = this.ly * !(this.ly > 154); // If vblank is over, prepare for next frame
 
 		this.vblanking = (this.ly > 143);
+		mem.ioreg [0x44] = this.ly; // Set LY io reg
+
+		// End
+		cpu.cycles += 114;
+	};
+
+	// DEBUG SCANLINE - draw tilemap
+	this.DoScanline = function () {
+
+		this.lx = 0;
+		this.subty = this.ly & 7;
+
+		// Draw tile data
+		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
+
+		for (var i = 0; i < 256; i ++) {
+			var addr = bgdatastart + (Math.floor (i / 8) * 16) + (this.subty * 2);
+
+			var data = (cpu.readByte (addr) << 8) | cpu.readByte (addr + 1);
+
+			var px = this.palshades [(data >> ((i & 7) * 2)) & 0x3];
+			this.PutPixel (this.lx, this.ly, px);
+
+			this.lx ++;
+		}
+
+		// Vblanking
+		this.ly ++;
+
+		this.ly = this.ly * !(this.ly > 153); // If vblank is over, prepare for next frame
+
+		// this.vblanking = (this.ly > 143);
 		mem.ioreg [0x44] = this.ly; // Set LY io reg
 
 		// End
