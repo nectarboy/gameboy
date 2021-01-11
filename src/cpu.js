@@ -150,7 +150,7 @@ const Cpu = function (nes) {
 		}
 		// WORK //
 		if (addr < 0xc000) {
-			if (!this.ramenabled)
+			if (!mem.ramenabled)
 				return 0xff;
 			return mem.cartram [addr - 0xa000]; // Extra ram - WIP
 		}
@@ -202,7 +202,7 @@ const Cpu = function (nes) {
 		}
 		// WORK //
 		if (addr < 0xc000) {
-			if (this.ramenabled)
+			if (mem.ramenabled)
 				mem.cartram [addr - 0xa000] = val;
 			return val;
 		}
