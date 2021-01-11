@@ -33,7 +33,6 @@ const Ops = function (cpu) {
 		flag.hcar = ((a & 0xf) < (b & 0xf));
 	};
 
-	// Thanks to 'Super S06' on Stack-Overflow :D
 	this.uncomplement = function (byte) {
 		return byte << 24 >> 24;
 	};
@@ -1368,11 +1367,16 @@ const Ops = function (cpu) {
 	};
 
 	// Debug
-	this.InvOp = function (opcode) {
+	this.InvOp = function (opcode, pc) {
 		cpu.Panic (
-			'INVop\n' +
+			'INVop\n' + this.GetDebugMsg (opcode, pc)
+		);
+	};
+
+	this.GetDebugMsg = function (opcode, pc) {
+		return (
 			'OP: ' + opcode.toString (16) + '\n' +
-			'PC: ' + cpu.pc.toString (16)
+			'PC: ' + pc.toString (16)
 		);
 	};
 
