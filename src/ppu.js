@@ -173,8 +173,8 @@ const Ppu = function (nes) {
 		// Draw tile data
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
 
-		for (var i = 0; i < 256; i ++) {
-			var addr = bgdatastart + (Math.floor (i / 8) * 16) + (this.subty * 2);
+		for (var i = 0; i < gbwidth; i ++) {
+			var addr = bgdatastart + ((i >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 256;
 
 			var data = (cpu.readByte (addr) << 8) | cpu.readByte (addr + 1);
 
@@ -187,13 +187,13 @@ const Ppu = function (nes) {
 		// Vblanking
 		this.ly ++;
 
-		this.ly = this.ly * !(this.ly > 153); // If vblank is over, prepare for next frame
+		this.ly = this.ly * (this.ly < 154); // If vblank is over, prepare for next frame
 
-		// this.vblanking = (this.ly > 143);
+		// this.vblanking = (this.ly < gbheight);
 		mem.ioreg [0x44] = this.ly; // Set LY io reg
 
 		// End
-		cpu.cycles += 114;
+		cpu.cycles += 114; // 114 * 4
 	};
 
 };

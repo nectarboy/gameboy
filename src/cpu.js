@@ -24,7 +24,7 @@ const Cpu = function (nes) {
 	// =============== //	Basic Elements //
 
 	// Basic flags
-	this.bootromAtm = true;
+	this.bootromAtm = false;
 	this.lowpower = false;
 
 	this.ime = false;
