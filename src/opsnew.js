@@ -242,7 +242,7 @@ const Ops = function (cpu) {
 
 		// BIT
 		BIT_u3_r8 (opcode) {
-			var u3 = ((opcode & 0x3f) / 8) | 0;
+			var u3 = (opcode & 0b00111111) >> 3;
 			var r8 = reg [algreg [opcode & 7]];
 
 			flag.zero = !testBit (r8, u3);
@@ -252,7 +252,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 8;
 		},
 		BIT_u3_hl (opcode) {
-			var u3 = ((opcode & 0x3f) / 8) | 0;
+			var u3 = (opcode & 0b00111111) >> 3;
 			var byte = cpu.readByte (getReg16.hl ());
 
 			flag.zero = !testBit (byte, u3);
@@ -325,8 +325,6 @@ const Ops = function (cpu) {
 			flag.hcar = checkSubCar (reg.a, byte);
 
 			cpu.cycles += 8;
-
-			return res; // Give the result a future :)
 		},
 
 		// CPL
@@ -338,7 +336,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 4;
 		},
 
-		// DAA
+		// DAA - WIP
 		DAA () {
 			// ... i still dont know tf this is
 			cpu.cycles += 4;
@@ -394,7 +392,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 4;
 		},
 
-		// HALT
+		// HALT - WIP
 		HALT () {
 			// WIP ...
 		},
@@ -651,6 +649,572 @@ const Ops = function (cpu) {
 		},
 
 		// OR
+		OR_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
+
+			var res = reg.a |= r8;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 4;
+		},
+		OR_a_hl () {
+			var byte = cpu.readByte (getReg16.hl ());
+
+			var res = reg.a |= byte;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 8;
+		},
+		OR_a_n8 () {
+			var byte = ops.Fetch ();
+
+			var res = reg.a |= byte;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 8;
+		},
+
+		// POP
+		POP_af () {
+			var chunk = cpu.popSP ();
+
+			writeReg16.af (chunk & 0xfff0); // Remove unused bits from f
+
+			// Set flags from reg f
+			flag.zero = reg.f & (1 << 7) !== 0;
+			flag.sub = reg.f & (1 << 6) !== 0;
+			flag.hcar = reg.f & (1 << 5) !== 0;
+			flag.car = reg.f & (1 << 4) !== 0;
+
+			cpu.cycles += 12;
+		},
+		POP_r16 (opcode) {
+			var r16 = algreg16 [opcode & 3];
+			writeReg16 [r16] (cpu.popSP ());
+
+			cpu.cycles += 12;
+		},
+
+		// PUSH
+		PUSH_af () {
+			// Mask flags into reg f
+			var newf = reg.f | (
+				(flag.zero << 7) |(flag.sub << 6) | (flag.hcar << 5) | (flag.car << 4)
+			);
+
+			cpu.pushSP (newf);
+
+			cpu.cycles += 16;
+		},
+		PUSH_r16 (opcode) {
+			var r16 = getReg16 [algreg16 [opcode & 3]] ();
+			cpu.pushSP (r16);
+
+			cpu.cycles += 16;
+		},
+
+		// RES
+		RES_u3_r8 (opcode) {
+			var u3 = (opcode & 0b00111111) >> 3;
+			var r8 = algreg [opcode & 7];
+
+			reg [r8] = clearBit (reg [r8], u3);
+
+			cpu.cycles += 8;
+		},
+		RES_u3_hl (opcode) {
+			var u3 = (opcode & 0b00111111) >> 3;
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			cpu.writeByte (hl, clearBit (reg [r8], u3));
+
+			cpu.cycles += 16;
+		},
+
+		// RET
+		RET () {
+			cpu.pc = cpu.popSP ();
+			cpu.cycles += 16;
+		},
+		RET_cc (cc) {
+			if (cc) {
+				this.RET ();
+				cpu.cycles += 4;
+			}
+			else
+				cpu.cycles += 8;
+		},
+		RETI () {
+			cpu.ime = true;
+			this.RET (); // 16 cycles
+		},
+
+		// RL
+		RL_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = ((reg [r8] << 1) | flag.car) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 7);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		RL_hl () {
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			var res = ((byte << 1) | flag.car) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 7);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+		RLA () {
+			var res = ((reg.a << 1) | flag.car) & 0xff;
+
+			flag.zero = 
+			flag.sub =
+			flag.hcar = false;
+			flag.car = testBit (reg.a, 7);
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+
+		// RLC
+		RLC_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = ((reg [r8] << 1) | (reg [r8] >> 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 7);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		RLC_hl () {
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			var res = ((byte << 1) | (byte >> 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 7);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+		RLCA () {
+			var res = ((reg.a << 1) | (reg.a >> 7)) & 0xff;
+
+			flag.zero = 
+			flag.sub =
+			flag.hcar = false;
+			flag.car = testBit (reg.a, 7);
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+
+		// RR
+		RR_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = ((reg [r8] >> 1) | (flag.car << 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 0);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		RR_hl () {
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			var res = ((byte >> 1) | (flag.car << 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 0);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+		RRA () {
+			var res = ((reg.a >> 1) | (flag.car << 7)) & 0xff;
+
+			flag.zero = 
+			flag.sub =
+			flag.hcar = false;
+			flag.car = testBit (reg.a, 0);
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+
+		// RRC
+		RRC_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = ((reg [r8] >> 1) | (reg [r8] << 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 0);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		RRC_hl () {
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			var res = ((byte >> 1) | (byte << 7)) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 0);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+		RRCA () {
+			var res = ((reg.a >> 1) | (reg.a << 7)) & 0xff;
+
+			flag.zero = 
+			flag.sub =
+			flag.hcar = false;
+			flag.car = testBit (reg.a, 0);
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+
+		// RST
+		RST_vec (vec) {
+			cpu.pushSP (cpu.pc);
+			cpu.pc = vec;
+
+			cpu.cycles += 16;
+		},
+
+		// SBC
+		SBC_a_r8 (opcode) {
+			var val = reg [algreg [opcode & 7]] + flag.car; // r8 + carry
+
+			var res = (reg.a - val) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			flag.hcar = checkSubHcar (reg.a, val);
+			flag.car = checkCar (reg.a, val);
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+		SBC_a_hl () {
+			var hl = getReg16.hl ();
+			var val = cpu.readByte (hl) + flag.car; // hl's byte + carry
+
+			var res = (reg.a - val) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			flag.hcar = checkSubHcar (reg.a, val);
+			flag.car = checkCar (reg.a, val);
+
+			reg.a = res;
+
+			cpu.cycles += 8;
+		},
+		SBC_a_n8 () {
+			var val = ops.Fetch () + flag.car; // fetched byte + carry
+
+			var res = (reg.a - val) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			flag.hcar = checkSubHcar (reg.a, val);
+			flag.car = checkCar (reg.a, val);
+
+			reg.a = res;
+
+			cpu.cycles += 8;
+		},
+
+		// SCF
+		SCF () {
+			flag.sub = flag.hcar = false;
+			flag.car = true;
+
+			cpu.cycles += 4;
+		},
+
+		// SET
+		SET_u3_r8 (opcode) {
+			var u3 = (opcode & 0b00111111) >> 3;
+			var r8 = algreg [opcode & 7];
+
+			reg [r8] = setBit (reg [r8], u3);
+
+			cpu.cycles += 8;
+		},
+		SET_u3_hl (opcode) {
+			var u3 = (opcode & 0b00111111) >> 3;
+			var hl = getReg16.hl ();
+
+			var byte = cpu.readByte (hl);
+			cpu.writeByte (hl, setBit (byte, u3));
+
+			cpu.cycles += 16;
+		},
+
+		// SLA
+		SLA_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = (reg [r8] << 1) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 7);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		SLA_hl () {
+			var hl = getReg16.hl ();
+			var byte = cpu.readByte (hl);
+
+			var res = (byte << 1) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 7);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+
+		// SRA
+		SRA_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var bit = reg [r8] & (1 << 7);
+			var res = (reg [r8] >> 1 | bit);
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 0);
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		SRA_hl () {
+			var hl = getReg16.hl ();
+			var byte = cpu.readByte (hl);
+
+			var bit = byte & (1 << 7);
+			var res = (byte >> 1 | bit);
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 0);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+
+		// SRL
+		SRL_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = reg [r8] >> 1;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (reg [r8], 0); 
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		SRL_hl () {
+			var hl = getReg16.hl ();
+			var byte = cpu.readByte (hl);
+
+			var res = byte >> 1;
+
+			flag.zero = res === 0;
+			flag.sub = flag.hcar = false;
+			flag.car = testBit (byte, 0);
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+
+		// STOP - WIP
+		STOP () {
+			// ...
+			cpu.pc = (cpu.pc + 1) & 0xffff; // Imaginary fetch 
+		},
+
+		// SUB
+		SUB_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
+
+			flag.hcar = checkSubHcar (reg.a, r8);
+			flag.hcar = checkSubCar (reg.a, r8);
+
+			var res = (reg.a - r8) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+
+			reg.a = res;
+
+			cpu.cycles += 4;
+		},
+		SUB_a_hl () {
+			var byte = cpu.readByte (getReg16.hl ());
+
+			flag.hcar = checkSubHcar (reg.a, byte);
+			flag.hcar = checkSubCar (reg.a, byte);
+
+			var res = (reg.a - byte) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+
+			reg.a = res;
+
+			cpu.cycles += 8;
+		},
+		SUB_a_n8 () {
+			var byte = ops.Fetch ();
+
+			var res = (reg.a - byte) & 0xff;
+
+			flag.zero = res === 0;
+			flag.sub = true;
+			flag.hcar = checkSubHcar (reg.a, byte);
+			flag.hcar = checkSubCar (reg.a, byte);
+
+			reg.a = res;
+
+			cpu.cycles += 8;
+		},
+
+		// SWAP
+		SWAP_r8 (opcode) {
+			var r8 = algreg [opcode & 7];
+
+			var res = ((reg [r8] << 4) | (reg [r8] >> 4)) & 0xff; // Swap bits
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			reg [r8] = res;
+
+			cpu.cycles += 8;
+		},
+		SWAP_hl () {
+			var hl = getReg16.hl ();
+			var byte = cpu.readByte (hl);
+
+			var res = ((byte << 4) | (byte >> 4)) & 0xff; // Swap bits
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.writeByte (hl, res);
+
+			cpu.cycles += 16;
+		},
+
+		// XOR
+		XOR_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
+
+			var res = reg.a ^= r8;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 4;
+		},
+		XOR_a_hl () {
+			var byte = cpu.readByte (getReg16.hl ());
+
+			var res = reg.a ^= byte;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 8;
+		},
+		XOR_a_n8 () {
+			var byte = ops.Fetch ();
+
+			var res = reg.a ^= byte;
+
+			flag.zero = res === 0;
+			flag.sub =
+			flag.hcar =
+			flag.car = false;
+
+			cpu.cycles += 8;
+		}
 
 	};
 
@@ -688,7 +1252,7 @@ const Ops = function (cpu) {
 			this.Decode (opcode);
 		}
 
-		console.log (this.GetDebugMsg (opcode, prepc));
+		// console.log (this.GetDebugMsg (opcode, prepc));
 	};
 
 	// =============== //	Debugging //

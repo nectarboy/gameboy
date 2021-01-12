@@ -129,7 +129,7 @@ const Mem = function (nes) {
 			}
 
 			default: {
-				this.Error ('unknown rom MBC type !');
+				this.Error ('unknown rom type !');
 			}
 		}
 
