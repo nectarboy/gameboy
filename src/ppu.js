@@ -127,13 +127,13 @@ const Ppu = function (nes) {
 	this.subty = 0; // Used to decide which row of tile to render
 
 	// Scanlining
-	this.DoScanline = function () {
+	/*this.DoScanline = function () {
 		if (!this.lcdc.lcd_enabled)
 			return;
 
 		// Draw background
 
-		/*this.subty = this.ly & 7;
+		this.subty = this.ly & 7;
 
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
 
@@ -150,7 +150,7 @@ const Ppu = function (nes) {
 			}
 
 			this.lx ++;
-		}*/
+		}
 
 		// Vblanking
 		this.ly ++;
@@ -161,11 +161,15 @@ const Ppu = function (nes) {
 		mem.ioreg [0x44] = this.ly; // Set LY io reg
 
 		// End
-		cpu.cycles += 114;
-	};
+		cpu.cycles += 114; // 114 * 4
+	};*/
 
 	// DEBUG SCANLINE - draw tilemap
 	this.DoScanline = function () {
+		// Only advance line if vblanking
+		if (this.ly > gbheight - 1) {
+			return this.AdvanceLine ();
+		}
 
 		this.lx = 0;
 		this.subty = this.ly & 7;
@@ -174,9 +178,10 @@ const Ppu = function (nes) {
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
 
 		for (var i = 0; i < gbwidth; i ++) {
-			var addr = bgdatastart + ((i >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 256;
+			var addr = bgdatastart + ((i >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 512;
+			// base_addr + (ly / 8) * 32 +  lx / 8
 
-			var data = (cpu.readByte (addr) << 8) | cpu.readByte (addr + 1);
+			var data = cpu.read16 (addr);
 
 			var px = this.palshades [(data >> ((i & 7) * 2)) & 0x3];
 			this.PutPixel (this.lx, this.ly, px);
@@ -184,16 +189,16 @@ const Ppu = function (nes) {
 			this.lx ++;
 		}
 
-		// Vblanking
+		// Advance line
+		this.AdvanceLine ();
+	};
+
+	// Advance line and update ly 
+	this.AdvanceLine = function () {
 		this.ly ++;
 
-		this.ly = this.ly * (this.ly < 154); // If vblank is over, prepare for next frame
-
-		// this.vblanking = (this.ly < gbheight);
+		this.ly = this.ly * (this.ly < 154); // If vblank is over, reset
 		mem.ioreg [0x44] = this.ly; // Set LY io reg
-
-		// End
-		cpu.cycles += 114; // 114 * 4
-	};
+	}
 
 };

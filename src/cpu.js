@@ -73,6 +73,7 @@ const Cpu = function (nes) {
 		l: 0
 	};
 
+	// 16 bit registers
 	this.getReg16 = {
 		af: function () {return this.get ('a', 'f')},
 		bc: function () {return this.get ('b', 'c')},
@@ -93,15 +94,15 @@ const Cpu = function (nes) {
 
 		write (rx, ry, val) {
 			val = val & 0xffff;
-			cpu.writeReg (rx, val >> 8); //  Get high byte
-			cpu.writeReg (ry, val & 0xff); // Get low byte
+			cpu.reg [rx] = (val >> 8);		// Hi byte
+			cpu.reg [ry] = (val & 0xff);	// Lo byte
 			return val;
 		}
 	};
 
-	this.writeReg = function (r8, val) {
+	/*this.writeReg = function (r8, val) {
 		return this.reg [r8] = val & 0xff; // Mask to 8bit int
-	};
+	};*/
 
 	// Flags
 	this.flag = {
@@ -268,19 +269,21 @@ const Cpu = function (nes) {
 	this.Step = function (extracycles) {
 		var ppu = nes.ppu;
 
+		this.cycles = 0;
+		var precycles = 0;
+
 		var cycles = this.cyclesperframe - extracycles;
-		var precycles = this.cycles;
 
 		while (cycles > 0) {
-			// Handle program timings
+			// Handle program flow
 			this.ops.ExeIns ();
 			ppu.DoScanline ();
 
 			// Reset cycle timing
-			this.cycles -= precycles;
+			var cycled = this.cycles - precycles;
 			precycles = this.cycles;
 
-			cycles -=this.cycles;
+			cycles -= cycled;
 		}
 
 		return cycles;

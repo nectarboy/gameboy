@@ -2,6 +2,29 @@ const Mem = function (nes) {
 
 	var mem = this;
 
+	// =============== //	Basic Functions //
+
+	this.Reset = function () {
+		// Reset all memory pies to 0
+		this.vram.fill (0);
+		this.wram.fill (0);
+		this.oam.fill (0);
+		this.ioreg.fill (0);
+		this.hram.fill (0);
+		this.iereg = 0;
+
+		// Reset rom properties
+		this.mbc = 0;
+		this.rombank = 1;
+		this.rambank = 1;
+		this.ramenabled = false;
+	};
+
+	this.Error = function (msg) {
+		alert (msg);
+		throw msg;
+	};
+
 	// =============== //	Memory Elements //
 
 	// Bootrom - 0x0000 - 0x00ff
@@ -166,27 +189,6 @@ const Mem = function (nes) {
 		}
 	};
 
-	this.Reset = function () {
-		// Reset all memory pies to 0
-		this.vram.fill (0);
-		this.wram.fill (0);
-		this.oam.fill (0);
-		this.ioreg.fill (0);
-		this.hram.fill (0);
-		this.iereg = 0;
-
-		// Reset rom properties
-		this.mbc = 0;
-		this.rombank = 1;
-		this.rambank = 1;
-		this.ramenabled = false;
-	};
-
-	this.Error = function (msg) {
-		alert (msg);
-		throw msg;
-	};
-
 	// =============== //	IO Registers //
 
 	this.ioonwrite = {
@@ -235,6 +237,11 @@ const Mem = function (nes) {
 			nes.ppu.scrollx = mem.ioreg [0x43] = val;
 		},
 
+		// LCY
+		[0x44]: function (val) {
+
+		},
+
 		// Pallete shades
 		[0x47]: function (val) {
 			var palshades = nes.ppu.palshades;
@@ -256,7 +263,7 @@ const Mem = function (nes) {
 		}
 	};
 
-	// =============== //	MBC Elements //
+	// =============== //	MBC Controllers //
 
 	// TODO - import rom properties from cpu to here
 	this.mbcControl = {

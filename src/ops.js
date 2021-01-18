@@ -349,6 +349,7 @@ const Ops = function (cpu) {
 			var res = (reg [r8] - 1) & 0xff;
 
 			flag.zero = res === 0;
+			// console.log (r8);
 			flag.sub = true;
 			flag.hcar = (res & 0xf) === 0;
 
@@ -467,7 +468,7 @@ const Ops = function (cpu) {
 			if (cc)
 				return this.JR_e8 ();
 
-			cpu.pc = (cpu.pc + 1) & 0xffff;
+			cpu.pc = (cpu.pc + 1) & 0xffff; // Imaginary fetch
 			cpu.cycles += 8;
 		},
 
@@ -837,7 +838,7 @@ const Ops = function (cpu) {
 			flag.zero = 
 			flag.sub =
 			flag.hcar = false;
-			flag.car = testBit (reg.a, 7);
+			flag.car = testBit (res, 7);
 
 			reg.a = res;
 
@@ -893,7 +894,7 @@ const Ops = function (cpu) {
 
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
-			flag.car = testBit (reg [r8], 0);
+			flag.car = testBit (res, 0);
 
 			reg [r8] = res;
 
@@ -907,7 +908,7 @@ const Ops = function (cpu) {
 
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
-			flag.car = testBit (byte, 0);
+			flag.car = testBit (res, 0);
 
 			cpu.writeByte (hl, res);
 
@@ -919,7 +920,7 @@ const Ops = function (cpu) {
 			flag.zero = 
 			flag.sub =
 			flag.hcar = false;
-			flag.car = testBit (reg.a, 0);
+			flag.car = testBit (res, 0);
 
 			reg.a = res;
 
@@ -1447,7 +1448,7 @@ const Ops = function (cpu) {
 					case 0x1: {
 						// POP AF
 						if (hi === 0xf0)
-							return this.POP_af ();
+							return this.INS.POP_af ();
 						// POP r16
 						return this.INS.POP_r16 (op);
 					}
@@ -1582,14 +1583,14 @@ const Ops = function (cpu) {
 	};
 
 	this.DecodeCB = function (op, pc) {
-		var hicrumb = op & 0b11000000 >> 6;
+		var hicrumb = (op & 0b11000000) >> 6;
 
 		function nohl () {
-			return op & 7 !== 6;
+			return (op & 7) !== 6;
 		}
 
 		if (hicrumb === 0) {
-			var opgrp = op & 0b00111111 >> 3;
+			var opgrp = (op & 0b00111111) >> 3;
 			switch (opgrp) {
 				case 0: return nohl () ? this.INS.RLC_r8 () : this.INS.RLC_hl (op);
 				case 1: return nohl () ? this.INS.RRC_r8 () : this.INS.RRC_hl (op);
