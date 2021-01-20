@@ -177,13 +177,20 @@ const Ppu = function (nes) {
 		// Draw tile data
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
 
-		for (var i = 0; i < gbwidth; i ++) {
-			var addr = bgdatastart + ((i >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 512;
-			// base_addr + (ly / 8) * 32 +  lx / 8
+		this.lx = 0;
+		while (this.lx < gbwidth) {
+			var addr = bgdatastart + ((this.lx >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 512;
 
-			var data = cpu.read16 (addr);
+			var hibyte = cpu.readByte (addr ++);
+			var lobyte = cpu.readByte (addr);
 
-			var px = this.palshades [(data >> ((i & 7) * 2)) & 0x3];
+			// var px = this.palshades [(data >> (((this.lx ^ 7) & 7) * 2)) & 3];
+
+			var bitmask = 1 << ((this.lx ^ 7) & 7);
+			var px = this.palshades [
+				(((hibyte & bitmask) !== 0) << 1)
+				| ((lobyte & bitmask) !== 0)
+			];
 			this.PutPixel (this.lx, this.ly, px);
 
 			this.lx ++;
