@@ -7,6 +7,8 @@ It is still a heavy WIP, and cannot do much atm, but progress is still being mad
 If you wanna peek through that code tho, spare a man sum feedback ! ! !
 I could be doing something completely wrong n i wouldnt know, so any and all feedback helps :)
 
+![Nintendo® !!](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true)
+
 ## Functionality
 So far here's what Pollen Boy has:
 - Load ROM
