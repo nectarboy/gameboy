@@ -264,7 +264,7 @@ const Ops = function (cpu) {
 
 		// CALL
 		CALL_n16 () {
-			cpu.pushSP (cpu.pc);
+			cpu.pushSP (cpu.pc + 1);
 
 			var addr = ops.Fetch16 ();
 			cpu.pc = addr;
@@ -472,8 +472,6 @@ const Ops = function (cpu) {
 			var byte = ops.Fetch ();
 			reg [r8] = byte;
 
-			console.log (cpu.pc.toString (16));
-
 			cpu.cycles += 8;
 		},
 
@@ -571,7 +569,7 @@ const Ops = function (cpu) {
 			var hl = getReg16.hl ();
 
 			cpu.writeByte (hl, reg.a);
-			writeReg16.hl (hl - 1); // Inc hl
+			writeReg16.hl (hl - 1); // Dec hl
 
 			cpu.cycles += 8;
 		},
@@ -588,7 +586,7 @@ const Ops = function (cpu) {
 			var hl = getReg16.hl ();
 
 			reg.a = cpu.readByte (hl);
-			writeReg16.hl (hl - 1); // Inc hl
+			writeReg16.hl (hl - 1); // Dec hl
 
 			cpu.cycles += 8;
 		},
@@ -728,7 +726,7 @@ const Ops = function (cpu) {
 
 		// RET
 		RET () {
-			cpu.pc = cpu.popSP () + 1;
+			cpu.pc = cpu.popSP ();
 			cpu.cycles += 16;
 		},
 		RET_cc (cc) {
@@ -1297,7 +1295,7 @@ const Ops = function (cpu) {
 			case 0x23:
 				return this.INS.INC_r16 ('hl');
 			case 0x24:
-				return this.INS.LD_r16_n16 ('hl');
+				return this.INS.INC_r8 ('h');
 			case 0x28:
 				return this.INS.JR_cc_e8 (flag.zero);
 			case 0x2a:
@@ -1317,7 +1315,7 @@ const Ops = function (cpu) {
 			case 0x3c:
 				return this.INS.INC_r8 ('a');
 			case 0x3d:
-				return this.INS.INC_r8 ('a');
+				return this.INS.DEC_r8 ('a');
 			case 0x3e:
 				return this.INS.LD_r8_n8 ('a');
 
@@ -1380,6 +1378,12 @@ const Ops = function (cpu) {
 				return this.INS.LD_r8_r8 ('a', 'b');
 			case 0x7b:
 				return this.INS.LD_r8_r8 ('a', 'e');
+			case 0x7c:
+				return this.INS.LD_r8_r8 ('a', 'h');
+
+			// 0 x 9 0
+			case 0x90:
+				return this.INS.SUB_a_r8 ('b');
 
 			// 0 x A 0
 			case 0xa8:
@@ -1495,12 +1499,22 @@ const Ops = function (cpu) {
 	};
 
 	var biglog = '';
+	var logcount = 0;
+	var logmax = 47932; // Lines in peach's bootlog
 
 	this.ExeIns = function () {
 		var prepc = cpu.pc;
 		var opcode = this.Fetch ();
 
-		// biglog += this.GetLogLine (opcode, prepc) + '\n';
+		/*biglog += this.GetLogLine (opcode, prepc) + '\n';
+		logcount ++;
+
+		if (logcount === logmax) {
+			var win = window.open("", "Title", "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=600,height=500,top="+(screen.height/2)+",left="+(screen.width/2));
+			win.document.body.innerHTML = '<pre>' + biglog + '</pre>';
+
+			throw 'BRUH';
+		}*/
 
 		// Prefixed
 		if (opcode === 0xcb) {
@@ -1511,13 +1525,6 @@ const Ops = function (cpu) {
 		else {
 			this.Decode (opcode, cpu.pc);
 		}
-
-		/*if (cpu.pc === 0xa0) {
-			var win = window.open("", "Title", "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=600,height=500,top="+(screen.height/2)+",left="+(screen.width/2));
-			win.document.body.innerHTML = '<pre>' + biglog + '</pre>';
-
-			throw 'a';
-		}*/
 	};
 
 	// =============== //	Debugging //
@@ -1532,7 +1539,7 @@ const Ops = function (cpu) {
 		cpu.Panic (
 			'ILLOP\n' + this.GetDebugMsg (opcode, pc)
 		);
-	}
+	};
 
 	this.GetDebugMsg = function (opcode, pc) {
 		return (

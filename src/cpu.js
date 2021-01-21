@@ -18,7 +18,7 @@ const Cpu = function (nes) {
 		return fps;
 	};
 
-	this.defaultfps = 360; // Preferably 360 or higher ???
+	this.defaultfps = 180; // Preferably 120 ? 360 or higher ???
 	this.SetFPS (this.defaultfps);
 
 	// =============== //	Basic Elements //

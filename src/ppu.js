@@ -27,7 +27,7 @@ const Ppu = function (nes) {
 
 	// =============== //	Screen Elements //
 
-	var gbwidth = 256; // 160
+	var gbwidth = 160; // 160
 	var gbheight = 144; // 144
 
 	this.pallete = {
@@ -127,45 +127,63 @@ const Ppu = function (nes) {
 	this.subty = 0; // Used to decide which row of tile to render
 
 	// Scanlining
-	/*this.DoScanline = function () {
+	this.DoScanline = function () {
 		if (!this.lcdc.lcd_enabled)
 			return;
+		// Only advance line if vblanking
+		if (this.ly > gbheight - 1) {
+			return this.AdvanceLine ();
+		}
+
+		// Prepare x and y
+		this.lx = 0;
+
+		var x = (this.lx + this.scrollx) & 0xff;
+		var y = (this.ly + this.scrolly) & 0xff;
 
 		// Draw background
-
-		this.subty = this.ly & 7;
+		this.subty = y & 7;
 
 		var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
-
 		var bgmapstart = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
-		var bgmapend = bgmapstart + 0xa0;
 
-		for (var i = bgmapstart; i < bgmapend; i ++) {
-			var tile = cpu.readByte (i);
-			var data = cpu.read16 (bgdatastart + (tile * 16) + (this.subty * 2));
+		var indy = bgmapstart + (y >> 3) * 32;
 
-			for (var ii = 0; ii < 8; ii ++) {
-				var px = this.palshades [(data >> (ii * 2)) & 0x3];
-				this.PutPixel (this.lx, this.ly, px);
-			}
+		while (this.lx < gbwidth) {
+			var ind = indy + (x >> 3); // BG tile index
+			var val = cpu.readByte (ind); // BG tile pattern value
+
+			var addr =
+				bgdatastart + (val << 4) // (val * 16) Each tile is 16 bytes
+				+ (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes
+
+			// Get tile line data
+			var hibyte = cpu.readByte (addr ++);
+			var lobyte = cpu.readByte (addr);
+
+			// Get and draw current tile line pixel
+			var bitmask = 1 << ((x ^ 7) & 7);
+			var px = this.palshades [
+				((hibyte & bitmask) ? 2 : 0)
+				| ((lobyte & bitmask) ? 1 : 0)
+			];
+			this.PutPixel (this.lx, this.ly, px);
 
 			this.lx ++;
+
+			x ++;
+			x &= 0xff;
 		}
 
 		// Vblanking
-		this.ly ++;
-
-		this.ly = this.ly * !(this.ly > 154); // If vblank is over, prepare for next frame
-
-		this.vblanking = (this.ly > 143);
-		mem.ioreg [0x44] = this.ly; // Set LY io reg
+		this.AdvanceLine ();
 
 		// End
-		cpu.cycles += 114; // 114 * 4
-	};*/
+		cpu.cycles += 1; // 114 * 4
+	};
 
 	// DEBUG SCANLINE - draw tilemap
-	this.DoScanline = function () {
+	/*this.DebugScanline = function () {
 		// Only advance line if vblanking
 		if (this.ly > gbheight - 1) {
 			return this.AdvanceLine ();
@@ -198,7 +216,7 @@ const Ppu = function (nes) {
 
 		// Advance line
 		this.AdvanceLine ();
-	};
+	};*/
 
 	// Advance line and update ly 
 	this.AdvanceLine = function () {
@@ -206,6 +224,6 @@ const Ppu = function (nes) {
 
 		this.ly = this.ly * (this.ly < 154); // If vblank is over, reset
 		mem.ioreg [0x44] = this.ly; // Set LY io reg
-	}
+	};
 
 };
