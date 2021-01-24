@@ -67,8 +67,8 @@ const Ops = function (cpu) {
 	this.INS = {
 
 		// ADC
-		ADC_a_r8 (r8) {
-			r8 = reg [r8];
+		ADC_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 
 			var val = r8 + flag.car;
 			var sum = reg.a + val;
@@ -114,8 +114,8 @@ const Ops = function (cpu) {
 		},
 
 		// ADD
-		ADD_a_r8 (r8) {
-			r8 = reg [r8];
+		ADD_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 
 			var sum = reg.a + r8;
 			flag.hcar = checkHcar (reg.a, reg [r8]);
@@ -135,7 +135,7 @@ const Ops = function (cpu) {
 			flag.hcar = checkHcar (reg.a, byte);
 			flag.car = checkCar (sum);
 
-			var res = reg.a = sum & 0xff;
+			var res = reg.a = (sum & 0xff);
 
 			flag.zero = res === 0;
 			flag.sub = false;
@@ -157,9 +157,9 @@ const Ops = function (cpu) {
 			cpu.cycles += 8;
 		},
 
-		ADD_hl_r16 (r16) {
+		ADD_hl_r16 (opcode) {
 			var hl = getReg16.hl ();
-			r16 = getReg16 [r16] ();
+			var r16 = getReg16 [algreg16 [(opcode >> 4) & 3]] ();
 
 			var sum = hl + r16;
 			flag.hcar = checkHcar16 (hl, r16);
@@ -172,7 +172,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 8;
 		},
 
-		ADD_hl_sp (opcode) {
+		ADD_hl_sp () {
 			var hl = getReg16.hl ();
 			var sp = cpu.sp;
 
@@ -264,9 +264,9 @@ const Ops = function (cpu) {
 
 		// CALL
 		CALL_n16 () {
-			cpu.pushSP (cpu.pc + 1);
-
 			var addr = ops.Fetch16 ();
+
+			cpu.pushSP (cpu.pc);
 			cpu.pc = addr;
 
 			cpu.cycles += 24;
@@ -288,8 +288,8 @@ const Ops = function (cpu) {
 		},
 
 		// CP
-		CP_a_r8 (r8) {
-			r8 = reg [r8];
+		CP_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 
 			flag.hcar = checkSubHcar (reg.a, r8);
 			flag.hcar = checkSubCar (reg.a, r8);
@@ -343,12 +343,14 @@ const Ops = function (cpu) {
 		},
 
 		// DEC
-		DEC_r8 (r8) {
+		DEC_r8 (opcode) {
+			var r8 = algreg [(opcode >> 3) & 7];
+
 			var res = (reg [r8] - 1) & 0xff;
 
 			flag.zero = res === 0;
 			flag.sub = true;
-			flag.hcar = (res & 0xf) === 0;
+			flag.hcar = (res & 0xf) === 0xf;
 
 			reg [r8] = res;
 
@@ -368,8 +370,10 @@ const Ops = function (cpu) {
 
 			cpu.cycles += 12;
 		},
-		DEC_r16 (r16) {
+		DEC_r16 (opcode) {
+			var r16 = algreg16 [(opcode >> 4) & 3];
 			writeReg16 [r16] (getReg16 [r16] () - 1);
+
 			cpu.cycles += 8;
 		},
 
@@ -394,7 +398,9 @@ const Ops = function (cpu) {
 		},
 
 		// INC
-		INC_r8 (r8) {
+		INC_r8 (opcode) {
+			var r8 = algreg [(opcode >> 3) & 7];
+
 			var res = (reg [r8] + 1) & 0xff;
 
 			flag.zero = res === 0;
@@ -419,8 +425,10 @@ const Ops = function (cpu) {
 
 			cpu.cycles += 12;
 		},
-		INC_r16 (r16) {
+		INC_r16 (opcode) {
+			var r16 = algreg16 [(opcode >> 4) & 3];
 			writeReg16 [r16] (getReg16 [r16] () + 1);
+
 			cpu.cycles += 8;
 		},
 		INC_sp () {
@@ -464,27 +472,35 @@ const Ops = function (cpu) {
 		},
 
 		// LD
-		LD_r8_r8 (rx, ry) {
+		LD_r8_r8 (opcode) {
+			var rx = algreg [(opcode >> 3) & 7];
+			var ry = algreg [opcode & 7];
+
 			reg [rx] = reg [ry];
+
 			cpu.cycles += 4;
 		},
-		LD_r8_n8 (r8) {
+		LD_r8_n8 (opcode) {
+			var r8 = algreg [(opcode >> 3) & 7];
 			var byte = ops.Fetch ();
+
 			reg [r8] = byte;
 
 			cpu.cycles += 8;
 		},
 
-		LD_r16_n16 (r16) {
+		LD_r16_n16 (opcode) {
+			var r16 = algreg16 [(opcode >> 4) & 3];
 			var chunk = ops.Fetch16 ();
+
 			writeReg16 [r16] (chunk);
 
 			cpu.cycles += 12;
 		},
 
-		LD_hl_r8 (r8) {
+		LD_hl_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 			var hl = getReg16.hl ();
-			r8 = reg [r8];
 
 			cpu.writeByte (hl, r8);
 
@@ -499,15 +515,17 @@ const Ops = function (cpu) {
 			cpu.cycles += 12;
 		},
 
-		LD_r8_hl (r8) {
+		LD_r8_hl (opcode) {
+			var r8 =  algreg [(opcode >> 3) & 7];
 			var hl = getReg16.hl ();
+
 			reg [r8] = cpu.readByte (hl);
 
 			cpu.cycles += 8;
 		},
 
-		LD_r16_a (r16) {
-			r16 = getReg16 [r16] ();
+		LD_r16_a (opcode) {
+			var r16 = getReg16 [algreg16 [(opcode >> 4) & 3]] ();
 			cpu.writeByte (r16, reg.a);
 
 			cpu.cycles += 8;
@@ -543,8 +561,8 @@ const Ops = function (cpu) {
 			cpu.cycles += 8;
 		},
 		
-		LD_a_r16 (r16) {
-			r16 = getReg16 [r16] ();
+		LD_a_r16 (opcode) {
+			r16 = getReg16 [algreg16 [(opcode >> 4) & 3]] ();
 			reg.a = cpu.readByte (r16);
 
 			cpu.cycles += 8;
@@ -631,8 +649,8 @@ const Ops = function (cpu) {
 		},
 
 		// OR
-		OR_a_r8 (r8) {
-			r8 = reg [r8];
+		OR_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]]
 
 			var res = reg.a |= r8;
 
@@ -682,8 +700,10 @@ const Ops = function (cpu) {
 
 			cpu.cycles += 12;
 		},
-		POP_r16 (r16) {
+		POP_r16 (opcode) {
+			var r16 = algreg16 [(opcode >> 4) & 3];
 			writeReg16 [r16] (cpu.popSP ());
+
 			cpu.cycles += 12;
 		},
 
@@ -698,8 +718,8 @@ const Ops = function (cpu) {
 
 			cpu.cycles += 16;
 		},
-		PUSH_r16 (r16) {
-			r16 = getReg16 [r16] ();
+		PUSH_r16 (opcode) {
+			var r16 = getReg16 [algreg16 [(opcode >> 4) & 3]] ();
 			cpu.pushSP (r16);
 
 			cpu.cycles += 16;
@@ -915,8 +935,9 @@ const Ops = function (cpu) {
 		},
 
 		// SBC
-		SBC_a_r8 (r8) {
-			var val = reg [r8] + flag.car; // r8 + carry
+		SBC_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
+			var val = r8 + flag.car; // r8 + carry
 
 			var res = (reg.a - val) & 0xff;
 
@@ -1082,8 +1103,8 @@ const Ops = function (cpu) {
 		},
 
 		// SUB
-		SUB_a_r8 (r8) {
-			r8 = reg [r8];
+		SUB_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 
 			flag.hcar = checkSubHcar (reg.a, r8);
 			flag.hcar = checkSubCar (reg.a, r8);
@@ -1159,8 +1180,8 @@ const Ops = function (cpu) {
 		},
 
 		// XOR
-		XOR_a_r8 (r8) {
-			r8 = reg [r8];
+		XOR_a_r8 (opcode) {
+			var r8 = reg [algreg [opcode & 7]];
 
 			var res = reg.a ^= r8;
 
@@ -1214,252 +1235,349 @@ const Ops = function (cpu) {
 		return chunk;
 	};
 
-	this.Decode = function (opcode, pc) {
-		switch (opcode) {
+	this.Decode = function (op, pc) {
+		var hi = op & 0xf0;
+		var lo = op & 0x0f;
 
-			// 0 x 0 0
+		switch (hi) {
+
+			// 0x00 - 0x40
 			case 0x00:
-				return this.INS.NOP ();
-			case 0x01:
-				return this.INS.LD_r16_n16 ('bc');
-			case 0x02:
-				return this.INS.LD_r16_a ('bc');
-			case 0x03:
-				return this.INS.INC_r16 ('bc');
-			case 0x04:
-				return this.INS.INC_r8 ('b');
-			case 0x05:
-				return this.INS.DEC_r8 ('b');
-			case 0x06:
-				return this.INS.LD_r8_n8 ('b');
-			case 0x07:
-				return this.INS.RLCA ();
-			case 0x08:
-				return this.INS.LD_n16_sp ();
-			case 0x09:
-				return this.INS.ADD_hl_r16 ('bc');
-			case 0x0a:
-				return this.INS.LD_a_r16 ('bc');
-			case 0x0b:
-				return this.INS.DEC_r16 ('bc');
-			case 0x0c:
-				return this.INS.INC_r8 ('c');
-			case 0x0d:
-				return this.INS.DEC_r8 ('c');
-			case 0x0e:
-				return this.INS.LD_r8_n8 ('c');
-			case 0x0f:
-				return this.INS.RRCA ();
-
-			// 0 x 1 0
 			case 0x10:
-				return this.INS.STOP ();
-			case 0x11:
-				return this.INS.LD_r16_n16 ('de');
-			case 0x12:
-				return this.INS.LD_r16_a ('de');
-			case 0x13:
-				return this.INS.INC_r16 ('de');
-			case 0x14:
-				return this.INS.INC_r8 ('d');
-			case 0x15:
-				return this.INS.DEC_r8 ('d');
-			case 0x16:
-				return this.INS.LD_r8_n8 ('d');
-			case 0x17:
-				return this.INS.RLA ();
-			case 0x18:
-				return this.INS.JR_e8 ();
-			case 0x19:
-				return this.INS.ADD_hl_r16 ('de');
-			case 0x1a:
-				return this.INS.LD_a_r16 ('de');
-			case 0x1b:
-				return this.INS.DEC_r16 ('de');
-			case 0x1c:
-				return this.INS.INC_r8 ('e');
-			case 0x1d:
-				return this.INS.DEC_r8 ('e');
-			case 0x1e:
-				return this.INS.LD_r8_n8 ('e');
-			case 0x1f:
-				return this.INS.RRA ();
-
-			// 0 x 2 0
 			case 0x20:
-				return this.INS.JR_cc_e8 (!flag.zero);
-			case 0x21:
-				return this.INS.LD_r16_n16 ('hl');
-			case 0x22:
-				return this.INS.LD_hli_a ();
-			case 0x23:
-				return this.INS.INC_r16 ('hl');
-			case 0x24:
-				return this.INS.INC_r8 ('h');
-			case 0x28:
-				return this.INS.JR_cc_e8 (flag.zero);
-			case 0x2a:
-				return this.INS.LD_a_hli ();
-			case 0x2e:
-				return this.INS.LD_r8_n8 ('l');
+			case 0x30: {
+				switch (lo) {
 
-			// 0 x 3 0
-			case 0x30:
-				return this.INS.JR_cc_e8 (!flag.car);
-			case 0x31:
-				return this.INS.LD_sp_n16 ();
-			case 0x32:
-				return this.INS.LD_hld_a ();
-			case 0x34:
-				return this.INS.INC_hl ();
-			case 0x3c:
-				return this.INS.INC_r8 ('a');
-			case 0x3d:
-				return this.INS.DEC_r8 ('a');
-			case 0x3e:
-				return this.INS.LD_r8_n8 ('a');
+					case 0x0: {
+						if (hi === 0x00)
+							return this.INS.NOP ();
+						if (hi === 0x10)
+							return this.INS.STOP ();
+						if (hi === 0x20)
+							return this.INS.JR_cc_e8 (!flag.zero);
+						if (hi === 0x30)
+							return this.INS.JR_cc_e8 (!flag.car);
+					}
+					case 0x1: {
+						// LD r16 n16
+						if (hi === 0x30)
+							return this.INS.LD_sp_n16 ();
+						return this.INS.LD_r16_n16 (op);
+					}
+					case 0x2: {
+						// LD HL+ / HL- A
+						if (hi === 0x20)
+							return this.INS.LD_hli_a ();
+						if (hi === 0x30)
+							return this.INS.LD_hld_a ();
+						// LD r16 a
+						return this.INS.LD_r16_a (op);
+					}
+					case 0x3: {
+						// INC r16
+						if (hi === 0x30)
+							return this.INS.INC_sp ();
+						return this.INS.INC_r16 (op);
+					}
+					case 0x4: {
+						// INC (HL)
+						if (hi === 0x30)
+							return this.INS.INC_hl ();
+						// INC r8
+						return this.INS.INC_r8 (op);
+					}
+					case 0x5: {
+						// DEC (HL)
+						if (hi === 0x30)
+							return this.INS.DEC_hl ();
+						// DEC r8
+						return this.INS.DEC_r8 (op);
+					}
+					case 0x6: {
+						// LD (HL) n8
+						if (hi === 0x30)
+							return this.INS.LD_hl_n8 ();
+						// LD r8 n8
+						return this.INS.LD_r8_n8 (op);
+					}
+					case 0x7: {
+						if (hi === 0x00)
+							return this.INS.RLCA ();
+						if (hi === 0x10)
+							return this.INS.RLA ();
+						if (hi === 0x20)
+							return this.INS.DAA ();
+						if (hi === 0x30)
+							return this.INS.SCF ();
+					}
+					case 0x08: {
+						if (hi === 0x00)
+							return this.INS.LD_n16_sp ();
+						if (hi === 0x10)
+							return this.INS.JR_e8 ();
+						if (hi === 0x20)
+							return this.INS.JR_cc_e8 (flag.zero);
+						if (hi === 0x30)
+							return this.INS.JR_cc_e8 (flag.car);
+					}
+					case 0x09: {
+						// ADD HL SP
+						if (hi === 0x30)
+							return this.INS.ADD_hl_sp ();
+						// ADD HL r16
+						return this.INS.ADD_hl_r16 (op);
+					}
+					case 0x0a: {
+						// LD A HL+ / HL-
+						if (hi === 0x30)
+							return this.INS.LD_a_hld ();
+						if (hi === 0x20)
+							return this.INS.LD_a_hli ();
+						// LD A r16
+						return this.INS.LD_a_r16 (op);
+					}
+					case 0x0b: {
+						// DEC SP
+						if (hi === 0x30)
+							return this.INS.INC_sp ();
+						// DEC r16
+						return this.INS.DEC_r16 (op);
+					}
+					case 0x0c: {
+						// INC r8
+						return this.INS.INC_r8 (op);
+					}
+					case 0x0d: {
+						// DEC r8
+						return this.INS.DEC_r8 (op); 
+					}
+					case 0x0e: {
+						// LD r8 n8
+						return this.INS.LD_r8_n8 (op);
+					}
+					case 0x0f: {
+						if (hi === 0x00)
+							return this.INS.RRCA ();
+						if (hi === 0x10)
+							return this.INS.RRA ();
+						if (hi === 0x20)
+							return this.INS.CPL ();
+						if (hi === 0x30)
+							return this.INS.CCF ();
+					}
 
-			// 0 x 4 0
-			case 0x46:
-				return this.INS.LD_r8_hl ('b');
-			case 0x47:
-				return this.INS.LD_r8_r8 ('b', 'a');
-			case 0x4f:
-				return this.INS.LD_r8_r8 ('c', 'a');
+				}
+				break;
+			}
 
-			// 0 x 5 0
-			case 0x57:
-				return this.INS.LD_r8_r8 ('d', 'a');
-			case 0x5f:
-				return this.INS.LD_r8_r8 ('e', 'a');
-
-			// 0 x 6 0
+			// 0x40 - 0x80
+			case 0x70: {
+				// HALT
+				if (lo === 6)
+					return this.INS.HALT ();
+				// LD (HL) r8
+				if (lo < 8)
+					return this.INS.LD_hl_r8 (op);
+			}
 			case 0x60:
-				return this.INS.LD_r8_r8 ('h', 'b');
-			case 0x61:
-				return this.INS.LD_r8_r8 ('h', 'c');
-			case 0x61:
-				return this.INS.LD_r8_r8 ('h', 'd');
-			case 0x63:
-				return this.INS.LD_r8_r8 ('h', 'e');
-			case 0x64:
-				return this.INS.LD_r8_r8 ('h', 'h');
-			case 0x65:
-				return this.INS.LD_r8_r8 ('h', 'l');
-			case 0x61:
-				return this.INS.LD_r8_hl ('h');
-			case 0x67:
-				return this.INS.LD_r8_r8 ('h', 'a');
-			case 0x68:
-				return this.INS.LD_r8_r8 ('l', 'b');
-			case 0x69: // funy
-				return this.INS.LD_r8_r8 ('l', 'c');
-			case 0x6c:
-				return this.INS.LD_r8_r8 ('l', 'h');
-			case 0x6e:
-				return this.INS.LD_r8_hl ('l');
+			case 0x50:
+			case 0x40: {
+				// LD r8 (HL)
+				if ((lo & 7) === 6)
+					return this.INS.LD_r8_hl (op);
+				// LD r8 r8
+				this.INS.LD_r8_r8 (op);
+				break;
+			}
 
-			// 0 x 7 0
-			case 0x70:
-				return this.INS.LD_hl_r8 ('b');
-			case 0x71:
-				return this.INS.LD_hl_r8 ('c');
-			case 0x72:
-				return this.INS.LD_hl_r8 ('d');
-			case 0x73:
-				return this.INS.LD_hl_r8 ('e');
-			case 0x74:
-				return this.INS.LD_hl_r8 ('h');
-			case 0x75:
-				return this.INS.LD_hl_r8 ('l');
-			case 0x77:
-				return this.INS.LD_hl_r8 ('a');
-			case 0x78:
-				return this.INS.LD_r8_r8 ('a', 'b');
-			case 0x7b:
-				return this.INS.LD_r8_r8 ('a', 'e');
-			case 0x7c:
-				return this.INS.LD_r8_r8 ('a', 'h');
+			// 0x80 - 0xC0
+			case 0x80: {
+				var inhlop = (lo & 7) === 6;
 
-			// 0 x 9 0
-			case 0x90:
-				return this.INS.SUB_a_r8 ('b');
+				if (lo < 8)
+					inhlop ? this.INS.ADD_a_hl () : this.INS.ADD_a_r8 (op); // ADD
+				else
+					inhlop ? this.INS.ADC_a_hl () : this.INS.ADC_a_r8 (op); // ADC
+				break;
+			}
+			case 0x90: {
+				var inhlop = (lo & 7) === 6;
 
-			// 0 x A 0
-			case 0xa8:
-				return this.INS.XOR_a_r8 ('b');
-			case 0xa9:
-				return this.INS.XOR_a_r8 ('c');
-			case 0xaa:
-				return this.INS.XOR_a_r8 ('d');
-			case 0xab:
-				return this.INS.XOR_a_r8 ('e');
-			case 0xac:
-				return this.INS.XOR_a_r8 ('h');
-			case 0xad:
-				return this.INS.XOR_a_r8 ('l');
-			case 0xae:
-				return this.INS.XOR_a_hl ();
-			case 0xaf:
-				return this.INS.XOR_a_r8 ('a');
+				if (lo < 8)
+					inhlop ? this.INS.SUB_a_hl () : this.INS.SUB_a_r8 (op); // SUB
+				else
+					inhlop ? this.INS.SBC_a_hl () : this.INS.SBC_a_r8 (op); // SBC
+				break;
+			}
+			case 0xA0: {
+				var inhlop = (lo & 7) === 6;
 
-			// 0 x C 0
+				if (lo < 8)
+					inhlop ? this.INS.AND_a_hl () : this.INS.AND_a_r8 (op); // AND
+				else
+					inhlop ? this.INS.XOR_a_hl () : this.INS.XOR_a_r8 (op); // XOR
+				break;
+			}
+			case 0xB0: {
+				var inhlop = (lo & 7) === 6;
+
+				if (lo < 8)
+					inhlop ? this.INS.OR_a_hl () : this.INS.OR_a_r8 (op); // OR
+				else
+					inhlop ? this.INS.CP_a_hl () : this.INS.CP_a_r8 (op); // CP
+				break;
+			}
+
+			// 0xC0 - 0xFF
 			case 0xc0:
-				return this.INS.RET_cc (!flag.zero);
-			case 0xc1:
-				return this.INS.POP_r16 ('bc');
-			case 0xc3:
-				return this.INS.JP_n16 ();
-			case 0xc5:
-				return this.INS.PUSH_r16 ('bc');
-			case 0xc8:
-				return this.INS.RET_cc (flag.zero);
-			case 0xc9:
-				return this.INS.RET ();
-			case 0xcd:
-				return this.INS.CALL_n16 ();
-			case 0xce:
-				return this.INS.ADC_a_n8 ();
-
-			// 0 x D 0
 			case 0xd0:
-				return this.INS.RET_cc (!flag.car);
-			case 0xd6:
-				return this.INS.SUB_a_n8 ();
-			case 0xd8:
-				return this.INS.RET_cc (flag.car);
-
-			// 0 x E 0
 			case 0xe0:
-				return this.INS.LDH_n8_a ();
-			case 0xe1:
-				return this.INS.POP_r16 ('hl');
-			case 0xe2:
-				return this.INS.LDH_c_a ();
-			case 0xe5:
-				return this.INS.PUSH_r16 ('hl');
-			case 0xe6:
-				return this.INS.AND_a_n8 ();
-			case 0xea:
-				return this.INS.LD_n16_a ();
+			case 0xf0: {
 
-			// 0 x F 0
-			case 0xf0:
-				return this.INS.LDH_a_n8 ();
-			case 0xf1:
-				return this.INS.POP_af ();
-			case 0xf3:
-				return this.INS.DI ();
-			case 0xf5:
-				return this.INS.PUSH_af ();
-			case 0xfe:
-				return this.INS.CP_a_n8 ();
-			case 0xff:
-				return this.INS.RST_vec (0x38);
-			
-			// INVALID OPCODE - PANIC ! ! !
-			default:
-				return this.InvOp (opcode, pc);
+				switch (lo) {
+					case 0x0: {
+						if (hi === 0xc0)
+							return this.INS.RET_cc (!flag.zero);
+						if (hi === 0xd0)
+							return this.INS.RET_cc (!flag.car);
+						if (hi === 0xe0)
+							return this.INS.LDH_n8_a ();
+						if (hi === 0xf0)
+							return this.INS.LDH_a_n8 ();
+					}
+					case 0x1: {
+						// POP AF
+						if (hi === 0xf0)
+							return this.INS.POP_af ();
+						// POP r16
+						return this.INS.POP_r16 (op);
+					}
+					case 0x2: {
+						if (hi === 0xc0)
+							return this.INS.JP_cc_n16 (!flag.zero);
+						if (hi === 0xd0)
+							return this.INS.JP_cc_n16 (!flag.car);
+						if (hi === 0xe0)
+							return this.INS.LDH_c_a ();
+						if (hi === 0xf0)
+							return this.INS.LDH_a_c ();
+					}
+					case 0x3: {
+						// JP n16
+						if (hi === 0xc0)
+							return this.INS.JP_n16 ();
+						// DI
+						if (hi === 0xf0)
+							return this.INS.DI ();
+						// PANIC
+						return this.IllOp (op, pc);
+					}
+					case 0x4: {
+						// CALL NZ n16
+						if (hi === 0xc0)
+							return this.INS.CALL_cc_n16 (!flag.zero);
+						// CALL NC n16
+						if (hi === 0xd0)
+							return this.INS.CALL_cc_n16 (!flag.car);
+						// PANIC
+						return this.IllOp (op, pc);
+					}
+					case 0x5: {
+						// PUSH AF
+						if (hi === 0xf0)
+							return this.INS.PUSH_af ();
+						// PUSH r16
+						return this.INS.PUSH_r16 (op);
+					}
+					case 0x6: {
+						if (hi === 0xc0)
+							return this.INS.ADD_a_n8 ();
+						if (hi === 0xd0)
+							return this.INS.SUB_a_n8 ();
+						if (hi === 0xe0)
+							return this.INS.AND_a_n8 ();
+						if (hi === 0xf0)
+							return this.INS.OR_a_n8 ();
+					}
+					case 0x7: {
+						// RST vec
+						return this.INS.RST_vec (hi - 0xc0);
+					}
+					case 0x8: {
+						if (hi === 0xc0)
+							return this.INS.RET_cc (flag.zero);
+						if (hi === 0xd0)
+							return this.INS.RET_cc (flag.car);
+						if (hi === 0xe0)
+							return this.INS.ADD_sp_e8 ();
+						if (hi === 0xf0)
+							return this.INS.LD_hl_spe8 ();
+					}
+					case 0x9: {
+						if (hi === 0xc0)
+							return this.INS.RET ();
+						if (hi === 0xd0)
+							return this.INS.RETI ();
+						if (hi === 0xe0)
+							return this.INS.JP_hl ();
+						if (hi === 0xf0)
+							return this.INS.LD_sp_hl ();
+					}
+					case 0xa: {
+						if (hi === 0xc0)
+							return this.INS.JP_cc_n16 (flag.zero);
+						if (hi === 0xd0)
+							return this.INS.JP_cc_n16 (flag.car);
+						if (hi === 0xe0)
+							return this.INS.LD_n16_a ();
+						if (hi === 0xf0)
+							return this.INS.LD_a_n16 ();
+					}
+					case 0xb: {
+						// EI
+						if (hi === 0xf0)
+							return this.INS.EI ();
+						// PANIC
+						return this.IllOp ();
+					}
+					case 0xc: {
+						// CALL Z n16
+						if (hi === 0xc0)
+							return this.INS.CALL_cc_n16 (flag.zero);
+						// CALL C n16
+						if (hi === 0xd0)
+							return this.INS.CALL_cc_n16 (flag.car);
+						// PANIC
+						return this.IllOp ();
+					}
+					case 0xd: {
+						// CALL n16
+						if (hi === 0xc0)
+							return this.INS.CALL_n16 ();
+						// PANIC
+						return this.IllOp ();
+					}
+					case 0xe: {
+						if (hi === 0xc0)
+							return this.INS.ADC_a_n8 ();
+						if (hi === 0xd0)
+							return this.INS.SBC_a_n8 ();
+						if (hi === 0xe0)
+							return this.INS.XOR_a_n8 ();
+						if (hi === 0xf0)
+							return this.INS.CP_a_n8 ();
+					}
+					case 0xf: {
+						return this.INS.RST_vec (hi - 0xb8);
+					}
+				}
+
+				break;
+			}
+
+			default: {
+				return this.InvOp (op, pc); // This rlly shouldnt happen ...
+			}
 
 		}
 	};
@@ -1503,10 +1621,8 @@ const Ops = function (cpu) {
 	var logmax = 47932; // Lines in peach's bootlog
 
 	this.ExeIns = function () {
-		var prepc = cpu.pc;
-		var opcode = this.Fetch ();
-
-		/*biglog += this.GetLogLine (opcode, prepc) + '\n';
+		// Logging
+		/*biglog += this.GetLogLine (cpu.pc) + '\n';
 		logcount ++;
 
 		if (logcount === logmax) {
@@ -1515,6 +1631,8 @@ const Ops = function (cpu) {
 
 			throw 'BRUH';
 		}*/
+
+		var opcode = this.Fetch ();
 
 		// Prefixed
 		if (opcode === 0xcb) {
@@ -1548,7 +1666,7 @@ const Ops = function (cpu) {
 		);
 	};
 
-	this.GetLogLine = function (opcode, pc) {
+	this.GetLogLine = function (pc) {
 		var toHex = n => ('0' + n.toString (16)).slice (-2);
 		var toHex16 = n => ('000' + n.toString (16)).slice (-4);
 
@@ -1564,7 +1682,7 @@ const Ops = function (cpu) {
 
 			' SP: ' + toHex16 (cpu.sp) +
 			' PC: ' + toHex16 (pc) +
-			' (' + toHex (opcode) + ')'
+			' (' + toHex (cpu.readByte (pc)) + ')'
 		);
 	};
 

@@ -13,6 +13,8 @@ const Mem = function (nes) {
 		this.hram.fill (0);
 		this.iereg = 0;
 
+		this.ioreg [0x44] = 144;
+
 		// Reset rom properties
 		this.mbc = 0;
 		this.rombank = 1;
@@ -202,7 +204,7 @@ const Mem = function (nes) {
 			console.log ('02: ' + val.toString (16));
 		},
 
-		// Div timer - incs every 256 cycles
+		// Div timer - incs every 256 cycles (TODO)
 		[0x04]: function (val) {
 			mem.ioreg [0x04] = 0; // Reset
 		},
@@ -257,7 +259,10 @@ const Mem = function (nes) {
 
 		// Enable / disable bootrom
 		[0x50]: function (val) {
-			nes.cpu.bootromAtm = (val === 0);
+			console.log (
+				'bootrom enabled = '
+				+ (nes.cpu.bootromAtm = (val === 0))
+			);
 
 			mem.ioreg [0x50] = val;
 		}

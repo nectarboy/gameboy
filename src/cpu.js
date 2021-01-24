@@ -18,7 +18,7 @@ const Cpu = function (nes) {
 		return fps;
 	};
 
-	this.defaultfps = 180; // Preferably 120 ? 360 or higher ???
+	this.defaultfps = 360; // Preferably 120 ? 360 or higher ???
 	this.SetFPS (this.defaultfps);
 
 	// =============== //	Basic Elements //
@@ -175,7 +175,7 @@ const Cpu = function (nes) {
 
 			if (!mem.ioonwrite [ioaddr]) // Unmapped mmio
 				return 0xff;
-			return mem.ioreg [addr - 0xff00];
+			return mem.ioreg [ioaddr];
 		}
 		// HIGH
 		if (addr < 0xffff) {

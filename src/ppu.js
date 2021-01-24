@@ -131,9 +131,9 @@ const Ppu = function (nes) {
 		if (!this.lcdc.lcd_enabled)
 			return;
 		// Only advance line if vblanking
-		if (this.ly > gbheight - 1) {
+		/*if (this.ly > gbheight - 1) {
 			return this.AdvanceLine ();
-		}
+		}*/
 
 		// Prepare x and y
 		this.lx = 0;
@@ -179,11 +179,11 @@ const Ppu = function (nes) {
 		this.AdvanceLine ();
 
 		// End
-		cpu.cycles += 1; // 114 * 4
+		cpu.cycles += 114; // 114 * 4
 	};
 
 	// DEBUG SCANLINE - draw tilemap
-	/*this.DebugScanline = function () {
+	this.DebugScanline = function () {
 		// Only advance line if vblanking
 		if (this.ly > gbheight - 1) {
 			return this.AdvanceLine ();
@@ -216,14 +216,14 @@ const Ppu = function (nes) {
 
 		// Advance line
 		this.AdvanceLine ();
-	};*/
+	};
 
 	// Advance line and update ly 
 	this.AdvanceLine = function () {
 		this.ly ++;
 
 		this.ly = this.ly * (this.ly < 154); // If vblank is over, reset
-		mem.ioreg [0x44] = this.ly; // Set LY io reg
+		mem.ioreg [0x44] = 144; // Set LY io reg (STUBBED)
 	};
 
 };
