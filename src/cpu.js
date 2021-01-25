@@ -30,7 +30,7 @@ const Cpu = function (nes) {
 	this.ime = false;
 
 	this.hasrom = false;
-	this.bootrom_enabled = true;
+	this.bootrom_enabled = false;
 
 	// =============== //	Registers and Flags //
 
@@ -339,13 +339,21 @@ const Cpu = function (nes) {
 		// Set registers to values occur in bootrom
 		this.writeReg16.af (0x01b0);
 		this.writeReg16.bc (0x0013);
-		this.writeReg16.de (0x00de);
+		this.writeReg16.de (0x00d8);
 		this.writeReg16.hl (0x014d);
+
+		// Fix flags
+		this.flag.zero 	= (this.reg.f & (1 << 7)) !== 0;
+		this.flag.sub 	= (this.reg.f & (1 << 6)) !== 0;
+		this.flag.hcar 	= (this.reg.f & (1 << 5)) !== 0;
+		this.flag.car 	= (this.reg.f & (1 << 4)) !== 0;
 
 		this.pc = 0x0100;
 		this.sp = 0xfffe;
 
 		this.bootromAtm = false;
+
+		// console.log (this.ops.GetLogLine (this.pc));
 	};
 
 	// =============== //	Debugging //

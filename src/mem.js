@@ -13,7 +13,7 @@ const Mem = function (nes) {
 		this.hram.fill (0);
 		this.iereg = 0;
 
-		this.ioreg [0x44] = 144;
+		// this.ioreg [0x44] = 144; // (Stub)
 
 		// Reset rom properties
 		this.mbc = 0;

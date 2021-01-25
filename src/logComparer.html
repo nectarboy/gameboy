@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Log Comparer</title>
+		<meta charset='utf-8'>
+
+		<style>
+			html, body {
+				margin: 10px;
+				overflow: hidden;
+				height: 100%;
+			}
+			* {
+				outline: none;
+				font-family: monospace;
+			}
+
+			.innerdiv {
+				text-align: center;
+				display: block;
+				padding: 10px;
+				background: #c8dbdb;
+				border: 1px solid #69ad9d;
+				overflow-y: scroll;
+				max-height: 90%;
+			}
+
+			.button {
+				display: block;
+				position: relative;
+
+				font-size: 30px;
+
+				margin: 0 auto;
+
+				width: 60%;
+				height: 60px;
+
+				background: #92dbd1;
+
+				border: solid 1px #69ad9d;
+				border-radius: 2px;
+			}
+			.button:active {
+				top: 3px;
+				background: #fff;
+			}
+
+			.output {
+				padding: 5px;
+
+				width: 70%;
+
+				/* Center output */
+				margin-right: auto;
+				margin-left: auto;
+
+				background: #ffffff;
+
+				border: solid 1px #69ad9d;
+				border-radius: 1px;				
+			}
+
+			.logtable {
+				width: 90%;
+
+				/* Center table */
+				margin-right: auto;
+				margin-left: auto;
+			}
+			.loginput {
+				resize: none;
+
+				padding: 5px;
+
+				width: 90%;
+				height: 240px;
+
+				white-space: pre-wrap;       /* css-3 */
+				white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+				white-space: -pre-wrap;      /* Opera 4-6 */
+				white-space: -o-pre-wrap;    /* Opera 7 */
+				word-wrap: break-word;       /* Internet Explorer 5.5+ */
+
+				background: #ffffff;
+
+				border: solid 1px #69ad9d;
+				border-radius: 1px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class='innerdiv'>
+			<h1>Log Comparer</h1>
+
+			<!-- Log input table -->
+			<table class='logtable'>
+				<tr>
+					<th>Log A</th>
+					<th>Log B</th>
+				</tr>
+				<tr>
+					<td><textarea class='loginput' id='log_a'></textarea></td>
+					<td><textarea class='loginput' id='log_b'></textarea></td>
+				</tr>
+			</table>
+			<br>
+
+			<!-- Output -->
+			<button class='button' id='button'>Compare</button>
+			<br>
+
+			<pre class='output' id='output'>(result)</pre>
+
+		</div>
+
+		<!-- Script -->
+		<script>
+			window.onload = function () { 'use strict'
+
+			/* ------------------------------ */
+
+				// HTML elements
+				var getE = id => document.getElementById (id); // Shortcut
+
+				var html = {
+					// Logs
+					logA: getE ('log_a'),
+					logB: getE ('log_b'),
+
+					// Output
+					button: getE ('button'),
+					output: getE ('output')
+				};
+
+				html.button.onclick = function () {
+					// Let user know its comparing
+					// - it may take some time
+					html.output.innerHTML = '(...)';
+
+					// Set small delay for front to update
+					setTimeout (() => {
+						html.output.innerHTML
+							= CompareLogs (html.logA.value, html.logB.value);
+					}, 0);
+				};
+
+				// Log compare function
+				function CompareLogs (a, b) {
+					// Format logs - split into seperate lines
+					a = a.split ('\n');
+					b = b.split ('\n');
+
+					// Compare strings
+					var length = Math.min (a.length, b.length);
+					console.log ('Length: ' + length);
+
+					for (var i = 0; i < length; i ++) {
+						var lineA = a [i].toUpperCase ()
+							.split ('(') [0]; // cut off at opcode info
+						var lineB = b [i].toUpperCase ()
+							.split ('(') [0]; // cut off at opcode info
+
+						if (lineA !== lineB)
+							// Failed string
+							return (
+								'Not Equal at'
+								+ '\nLine: ' + (i + 1)
+
+								+ '\n\nA: ' + lineA
+								+ '\nB: ' + lineB
+							);
+					}
+
+					// Success string
+					return 'Success ! Logs are equal';
+				} 
+
+
+			/* ------------------------------ */
+
+			};
+		</script>
+	</body>
+</html>

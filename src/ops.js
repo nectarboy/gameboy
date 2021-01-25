@@ -72,6 +72,7 @@ const Ops = function (cpu) {
 
 			var val = r8 + flag.car;
 			var sum = reg.a + val;
+
 			flag.hcar = checkHcar (reg.a, val);
 			flag.car = checkCar (sum);
 
@@ -87,6 +88,7 @@ const Ops = function (cpu) {
 
 			var val = byte + flag.car;
 			var sum = reg.a + val;
+
 			flag.hcar = checkHcar (reg.a, val);
 			flag.car = checkCar (sum);
 
@@ -102,6 +104,7 @@ const Ops = function (cpu) {
 
 			var val = byte + flag.car;
 			var sum = reg.a + val;
+			
 			flag.hcar = checkHcar (reg.a, val);
 			flag.car = checkCar (sum);
 
@@ -292,7 +295,7 @@ const Ops = function (cpu) {
 			var r8 = reg [algreg [opcode & 7]];
 
 			flag.hcar = checkSubHcar (reg.a, r8);
-			flag.hcar = checkSubCar (reg.a, r8);
+			flag.car = checkSubCar (reg.a, r8);
 
 			var res = (reg.a - r8) & 0xff;
 
@@ -305,7 +308,7 @@ const Ops = function (cpu) {
 			var byte = cpu.readByte (getReg16.hl ());
 
 			flag.hcar = checkSubHcar (reg.a, byte);
-			flag.hcar = checkSubCar (reg.a, byte);
+			flag.car = checkSubCar (reg.a, byte);
 
 			var res = (reg.a - byte) & 0xff;
 
@@ -322,7 +325,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = true;
 			flag.hcar = checkSubHcar (reg.a, byte);
-			flag.hcar = checkSubCar (reg.a, byte);
+			flag.car = checkSubCar (reg.a, byte);
 
 			cpu.cycles += 8;
 		},
@@ -364,7 +367,7 @@ const Ops = function (cpu) {
 
 			flag.zero = res === 0;
 			flag.sub = true;
-			flag.hcar = (res & 0xf) === 0;
+			flag.hcar = (res & 0xf) === 0xf;
 
 			cpu.writeByte (hl, res);
 
@@ -568,7 +571,7 @@ const Ops = function (cpu) {
 			cpu.cycles += 8;
 		},
 		LD_a_n16 () {
-			var chunk = ops.Fetch16;
+			var chunk = ops.Fetch16 ();
 			reg.a = cpu.readByte (chunk);
 
 			cpu.cycles += 8;
@@ -693,10 +696,10 @@ const Ops = function (cpu) {
 			writeReg16.af (chunk & 0xfff0); // Remove unused bits from f
 
 			// Set flags from reg f
-			flag.zero = reg.f & (1 << 7) !== 0;
-			flag.sub = reg.f & (1 << 6) !== 0;
-			flag.hcar = reg.f & (1 << 5) !== 0;
-			flag.car = reg.f & (1 << 4) !== 0;
+			flag.zero 	= testBit (reg.f, 7);
+			flag.sub 	= testBit (reg.f, 6);
+			flag.hcar 	= testBit (reg.f, 5);
+			flag.car 	= testBit (reg.f, 4);
 
 			cpu.cycles += 12;
 		},
@@ -711,10 +714,10 @@ const Ops = function (cpu) {
 		PUSH_af () {
 			// Mask flags into reg f
 			var newf = (
-				(flag.zero << 7) |(flag.sub << 6) | (flag.hcar << 5) | (flag.car << 4)
+				(flag.zero << 7) | (flag.sub << 6) | (flag.hcar << 5) | (flag.car << 4)
 			);
 
-			cpu.pushSP (newf);
+			cpu.pushSP ((reg.a << 8) | newf); // Mask reg a and f into af
 
 			cpu.cycles += 16;
 		},
@@ -739,7 +742,7 @@ const Ops = function (cpu) {
 			var hl = getReg16.hl ();
 
 			var byte = cpu.readByte (hl);
-			cpu.writeByte (hl, clearBit (reg [r8], u3));
+			cpu.writeByte (hl, clearBit (byte, u3));
 
 			cpu.cycles += 16;
 		},
@@ -837,7 +840,7 @@ const Ops = function (cpu) {
 			flag.zero = 
 			flag.sub =
 			flag.hcar = false;
-			flag.car = testBit (res, 7);
+			flag.car = testBit (reg.a, 7);
 
 			reg.a = res;
 
@@ -893,7 +896,7 @@ const Ops = function (cpu) {
 
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
-			flag.car = testBit (res, 0);
+			flag.car = testBit (reg [r8], 0);
 
 			reg [r8] = res;
 
@@ -907,7 +910,7 @@ const Ops = function (cpu) {
 
 			flag.zero = res === 0;
 			flag.sub = flag.hcar = false;
-			flag.car = testBit (res, 0);
+			flag.car = testBit (byte, 0);
 
 			cpu.writeByte (hl, res);
 
@@ -919,7 +922,7 @@ const Ops = function (cpu) {
 			flag.zero = 
 			flag.sub =
 			flag.hcar = false;
-			flag.car = testBit (res, 0);
+			flag.car = testBit (reg.a, 0);
 
 			reg.a = res;
 
@@ -1107,7 +1110,7 @@ const Ops = function (cpu) {
 			var r8 = reg [algreg [opcode & 7]];
 
 			flag.hcar = checkSubHcar (reg.a, r8);
-			flag.hcar = checkSubCar (reg.a, r8);
+			flag.car = checkSubCar (reg.a, r8);
 
 			var res = (reg.a - r8) & 0xff;
 
@@ -1122,7 +1125,7 @@ const Ops = function (cpu) {
 			var byte = cpu.readByte (getReg16.hl ());
 
 			flag.hcar = checkSubHcar (reg.a, byte);
-			flag.hcar = checkSubCar (reg.a, byte);
+			flag.car = checkSubCar (reg.a, byte);
 
 			var res = (reg.a - byte) & 0xff;
 
@@ -1141,7 +1144,7 @@ const Ops = function (cpu) {
 			flag.zero = res === 0;
 			flag.sub = true;
 			flag.hcar = checkSubHcar (reg.a, byte);
-			flag.hcar = checkSubCar (reg.a, byte);
+			flag.car = checkSubCar (reg.a, byte);
 
 			reg.a = res;
 
@@ -1672,7 +1675,7 @@ const Ops = function (cpu) {
 
 		return (
 			'A: ' + toHex (reg.a) +
-			' F: ' + toHex ((flag.zero << 7) |(flag.sub << 6) | (flag.hcar << 5) | (flag.car << 4)) +
+			' F: ' + toHex ((flag.zero << 7) | (flag.sub << 6) | (flag.hcar << 5) | (flag.car << 4)) +
 			' B: ' + toHex (reg.b) +
 			' C: ' + toHex (reg.c) +
 			' D: ' + toHex (reg.d) +
@@ -1681,7 +1684,7 @@ const Ops = function (cpu) {
 			' L: ' + toHex (reg.l) +
 
 			' SP: ' + toHex16 (cpu.sp) +
-			' PC: ' + toHex16 (pc) +
+			' PC: ' + '00:' + toHex16 (pc) + // '00' is a placeholder for rombank
 			' (' + toHex (cpu.readByte (pc)) + ')'
 		);
 	};

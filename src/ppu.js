@@ -179,7 +179,7 @@ const Ppu = function (nes) {
 		this.AdvanceLine ();
 
 		// End
-		cpu.cycles += 114; // 114 * 4
+		// cpu.cycles += 114; // 114 * 4
 	};
 
 	// DEBUG SCANLINE - draw tilemap
