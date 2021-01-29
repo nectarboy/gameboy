@@ -18,5 +18,5 @@ So far here's what Pollen Boy has:
 - ... ITS A WIP OK
 
 ## How To Use
-Open the webpage, click ++Choose ROM++, and enjoy !
+Open the webpage, click <kbd>Choose ROM</kbd>, and enjoy !
 (Well u can't rlly ,,, enjoy it but hush)

@@ -21,7 +21,10 @@ const Gameboy = function () {
 	this.Start = function () {
 		this.Stop ();
 
-		console.log ('started execution.');
+		console.log (
+			'started execution.' // Nice lil border :3
+			+ '\n/---------------/'
+		);
 
 		// Start all components
 		this.cpu.LoopExe (0);

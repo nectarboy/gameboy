@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>TIMING TEST</title>
+        <meta charset='utf-8'>
+
+        <style>
+            html, body {
+                background: black;
+                text-align: center;
+            }
+            * {
+                color: white;
+                font-size: 40px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- Pre -->
+        <pre id='pre'>(...)</pre>
+
+        <!-- Script -->
+        <script>
+            window.onload = function () { 'use strict'
+
+                /* -------------------- */
+
+                var pre = document.getElementById ('pre');
+
+                var timeout = now =>
+                    setTimeout (() => {
+                        CalculateFps (now);
+                    }, interv);
+
+                // Settings
+                var interv = 1000 / 60;
+
+                function CalculateFps (last) {
+                    // Calculate
+                    var now = performance.now ();
+                    var fps = 1000 / (now - last);
+
+                    // Update pre
+                    pre.innerHTML = Math.floor (fps);
+
+                    // Loop again ...
+                    timeout (now);
+                }
+
+
+                timeout (performance.now ());
+
+                /* -------------------- */
+
+            };
+        </script>
+    </body>
+</html>
