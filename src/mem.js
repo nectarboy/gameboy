@@ -13,7 +13,7 @@ const Mem = function (nes) {
         this.hram.fill (0);
         this.iereg = 0;
 
-        this.ioreg [0x44] = 144; // (Stub)
+        // this.ioreg [0x44] = 144; // (Stub)
 
         // Reset rom properties
         this.mbc = 0;
@@ -197,16 +197,21 @@ const Mem = function (nes) {
         // Serial Ports - used by test roms for output
         [0x01]: function (val) {
             mem.ioreg [0x01] = val;
-            console.log ('01: ' + val.toString (16));
+            // console.log ('01: ' + val.toString (16));
         },
         [0x02]: function (val) {
             mem.ioreg [0x02] = val;
-            console.log ('02: ' + val.toString (16));
+            // console.log ('02: ' + val.toString (16));
         },
 
         // Div timer - incs every 256 cycles (TODO)
         [0x04]: function (val) {
             mem.ioreg [0x04] = 0; // Reset
+        },
+
+        // Interrupt flags
+        [0x0f]: function (val) {
+            nes.cpu.iflag.Write (val);
         },
 
         // LCDC
@@ -222,7 +227,7 @@ const Mem = function (nes) {
             lcdc.sprite_enabled = bits [1];
             lcdc.sprite_size = bits [2];
             lcdc.bg_tilemap_alt = bits [3];
-            lcdc.bg_window_start = bits [4];
+            lcdc.signed_addressing = bits [4];
             lcdc.window_enabled = bits [5];
             lcdc.window_tilemap_alt = bits [6];
             lcdc.lcd_enabled = bits [7];
@@ -251,7 +256,7 @@ const Mem = function (nes) {
             for (var i = 0; i < 4; i ++) {
                 // Get specific crumbs from val
                 // A 'crumb' is a 2 bit number, i coined that :D
-                palshades [i] = (val >> (i * 2)) & 0x3;
+                palshades [i] = (val >> (i << 1)) & 3;
             }
 
             mem.ioreg [0x47] = val;
@@ -264,7 +269,7 @@ const Mem = function (nes) {
                 console.log ('bootrom disabled.');
             }
             mem.ioreg [0x50] = val;
-        }
+        },
     };
 
     // =============== //   MBC Controllers //

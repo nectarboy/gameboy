@@ -632,14 +632,12 @@ const Ops = function (cpu) {
             var e8 = ops.Fetch () << 24 >> 24; // Compliment byte
 
             var sum = cpu.sp + e8;
-            var res = sum & 0xff;
+            var res = writeReg16.hl (sum);
 
-            flag.zero = res === 0;
+            flag.zero =
             flag.sub = false;
             flag.hcar = checkHcar (cpu.sp, e8);
             flag.car = checkCar (sum);
-
-            writeReg16.hl (res);
 
             cpu.cycles += 12; // Phew .. !
         },
@@ -957,14 +955,14 @@ const Ops = function (cpu) {
             cpu.cycles += 4;
         },
         SBC_a_hl () {
-            var hl = getReg16.hl ();
-            var val = cpu.readByte (hl) + flag.car; // hl's byte + carry
+            var byte = cpu.readByte (getReg16.hl ()); // HL's byte
+            var val = byte + flag.car; // + carry
 
             var res = (reg.a - val) & 0xff;
 
             flag.zero = res === 0;
             flag.sub = true;
-            flag.hcar = (reg.a & 0xf) < ((r8 & 0xf) + flag.car);
+            flag.hcar = (reg.a & 0xf) < ((byte & 0xf) + flag.car);
             flag.car = checkSubCar (reg.a, val);
 
             reg.a = res;
@@ -972,13 +970,14 @@ const Ops = function (cpu) {
             cpu.cycles += 8;
         },
         SBC_a_n8 () {
-            var val = ops.Fetch () + flag.car; // fetched byte + carry
+            var byte = ops.Fetch ();
+            var val = byte + flag.car; // + carry
 
             var res = (reg.a - val) & 0xff;
 
             flag.zero = res === 0;
             flag.sub = true;
-            flag.hcar = (reg.a & 0xf) < ((r8 & 0xf) + flag.car);
+            flag.hcar = (reg.a & 0xf) < ((byte & 0xf) + flag.car);
             flag.car = checkSubCar (reg.a, val);
 
             reg.a = res;

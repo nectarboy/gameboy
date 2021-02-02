@@ -1,62 +1,62 @@
 const Gameboy = function () {
 
-	var gb = this;
+    var gb = this;
 
-	this.canvas = null;
+    this.canvas = null;
 
-	// =============== // 	Components //
+    // =============== //   Components //
 
-	this.cpu = new Cpu (this);
-	this.ppu = new Ppu (this);
+    this.cpu = new Cpu (this);
+    this.ppu = new Ppu (this);
 
-	// =============== //	Settings //
+    // =============== //   Settings //
 
-	this.settings = {
-		enable_bootrom: bool => gb.cpu.bootrom_enabled = bool,
-		set_pitchshift: num => num,
-	};
+    this.settings = {
+        enable_bootrom: bool => gb.cpu.bootrom_enabled = bool,
+        set_pitchshift: num => num,
+    };
 
-	// =============== // 	Functions //
+    // =============== //   Functions //
 
-	this.Start = function () {
-		this.Stop ();
+    this.Start = function () {
+        this.Stop ();
 
-		console.log (
-			'started execution.' // Nice lil border :3
-			+ '\n/---------------/'
-		);
+        console.log (
+            'started execution.' // Nice lil border :3
+            + '\n/---------------/'
+        );
 
-		// Start all components
-		this.cpu.LoopExe (0);
-		this.ppu.RenderLoop ();
-	};
+        // Start all components
+        this.cpu.LoopExe (0);
+        this.ppu.RenderLoop ();
+    };
 
-	this.Stop = function () {
-		this.cpu.StopExe ();
-		this.ppu.StopRendering ();
+    this.Stop = function () {
+        this.cpu.StopExe ();
+        this.ppu.StopRendering ();
 
-		console.log ('stopped execution.');
-	};
+        console.log ('stopped execution.');
+    };
 
-	this.Reset = function () {
-		this.cpu.Reset ();
-		this.ppu.Reset ();
-	}
+    this.Reset = function () {
+        this.cpu.Reset ();
+        this.ppu.Reset ();
+    }
 
-	this.ReadRomFile = function (file, then) {
-		console.log ('loading rom...');
+    this.ReadRomFile = function (file, then) {
+        console.log ('loading rom...');
 
-		var fr = new FileReader ();
-		fr.onload = function () {
-			gb.cpu.mem.LoadRom (fr.result); // Load Rom
-			then (); // And then ...
-		};
-		fr.readAsArrayBuffer (file);
-	};
+        var fr = new FileReader ();
+        fr.onload = function () {
+            gb.cpu.mem.LoadRom (fr.result); // Load Rom
+            then (); // And then ...
+        };
+        fr.readAsArrayBuffer (file);
+    };
 
-	this.AttachCanvas = function (c) {
-		this.canvas = c;
-		this.ppu.ResetCtx ();
-	};
+    this.AttachCanvas = function (c) {
+        this.canvas = c;
+        this.ppu.ResetCtx ();
+    };
 
 };

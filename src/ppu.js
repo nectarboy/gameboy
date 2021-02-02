@@ -12,7 +12,7 @@ const Ppu = function (nes) {
         sprite_enabled: false,
         sprite_size: false,
         bg_tilemap_alt: false,
-        bg_window_start: false,
+        signed_addressing: false,
         window_enabled: false,
         window_tilemap_alt: false,
         lcd_enabled: false
@@ -108,7 +108,7 @@ const Ppu = function (nes) {
         this.lcdc.sprite_enabled = false;
         this.lcdc.sprite_size = false;
         this.lcdc.bg_tilemap_alt = false;
-        this.lcdc.bg_window_start = false;
+        this.lcdc.signed_addressing = false;
         this.lcdc.window_enabled = false;
         this.lcdc.window_tilemap_alt = false;
         this.lcdc.lcd_enabled = false;
@@ -131,37 +131,53 @@ const Ppu = function (nes) {
         if (!this.lcdc.lcd_enabled)
             return;
         // Only advance line if vblanking
-        if (this.ly > gbheight - 1) {
+        if (this.ly >= gbheight) {
+            //if (this.ly === gbheight)
+                //cpu.iflag.SetBit (0); // Request vblank interrupt
+
             return this.AdvanceLine ();
         }
 
         // Prepare x and y
         this.lx = 0;
 
+        // Line positions with scroll in context
         var x = (this.lx + this.scrollx) & 0xff;
         var y = (this.ly + this.scrolly) & 0xff;
 
         // Draw background
         this.subty = y & 7;
 
-        var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
-        var bgmapstart = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
+        // Calculate tile data base
+        var tiledatabase = 0x9000 - (this.lcdc.signed_addressing * 0x1000);
 
-        var indy = bgmapstart + (y >> 3) * 32;
+        // Calculate background map base
+        var bgmapbase = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
+
+        var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
 
         while (this.lx < gbwidth) {
-            var ind = indy + (x >> 3); // BG tile index
-            var val = cpu.readByte (ind); // BG tile pattern value
+            var mapind = mapindy + (x >> 3); // (x / 8) Background tile map
+            var patind = cpu.readByte (mapind); // Get tile index at map
+
+            // Calculate tile data address
+            /*var addr =
+                tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
+                + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes*/
+
+            // Complement tile index if signed adressing mode
+            if (!this.lcdc.signed_addressing)
+                patind = patind << 24 >> 24;
 
             var addr =
-                bgdatastart + (val << 4) // (val * 16) Each tile is 16 bytes
+                tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
                 + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes
 
             // Get tile line data
-            var hibyte = cpu.readByte (addr ++);
-            var lobyte = cpu.readByte (addr);
+            var lobyte = cpu.readByte (addr ++);
+            var hibyte = cpu.readByte (addr);
 
-            // Get and draw current tile line pixel
+            // Mix and draw current tile line pixel
             var bitmask = 1 << ((x ^ 7) & 7);
             var px = this.palshades [
                 ((hibyte & bitmask) ? 2 : 0)
@@ -171,6 +187,7 @@ const Ppu = function (nes) {
 
             this.lx ++;
 
+            // Update lx with scroll in context
             x ++;
             x &= 0xff;
         }
@@ -184,8 +201,8 @@ const Ppu = function (nes) {
 
     // DEBUG SCANLINE - draw tilemap
     this.DebugScanline = function () {
-        // Only advance line if vblanking
-        if (this.ly > gbheight - 1) {
+        // When vblanking ...
+        if (this.ly >= gbheight) {
             return this.AdvanceLine ();
         }
 
@@ -193,14 +210,14 @@ const Ppu = function (nes) {
         this.subty = this.ly & 7;
 
         // Draw tile data
-        var bgdatastart = 0x8800 - (this.lcdc.bg_window_start * 0x800);
+        var bgdatastart = 0x8800 - (this.lcdc.signed_addressing * 0x800);
 
         this.lx = 0;
         while (this.lx < gbwidth) {
             var addr = bgdatastart + ((this.lx >> 3) * 16) + (this.subty * 2) + (this.ly >> 3) * 512;
 
-            var hibyte = cpu.readByte (addr ++);
-            var lobyte = cpu.readByte (addr);
+            var lobyte = cpu.readByte (addr ++);
+            var hibyte = cpu.readByte (addr);
 
             // var px = this.palshades [(data >> (((this.lx ^ 7) & 7) * 2)) & 3];
 
@@ -216,6 +233,9 @@ const Ppu = function (nes) {
 
         // Advance line
         this.AdvanceLine ();
+
+        // End
+        // cpu.cycles += 456; // 114 * 4
     };
 
     // Advance line and update ly 
@@ -223,7 +243,7 @@ const Ppu = function (nes) {
         this.ly ++;
 
         this.ly = this.ly * (this.ly < 154); // If vblank is over, reset
-        // mem.ioreg [0x44] = this.ly; // Set LY io reg
+        mem.ioreg [0x44] = this.ly; // Set LY io reg
     };
 
 };
