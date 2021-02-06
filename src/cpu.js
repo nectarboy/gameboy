@@ -328,7 +328,7 @@ this.CheckInterrupts = function () {
         if (addr < 0x8000) {
             if (!this.hasrom)
                 return 0xff;
-            return mem.cartrom [addr];
+            return mem.mbcRead [mem.mbc] (addr);
         }
         // VIDEO //
         if (addr < 0xa000) {
@@ -377,9 +377,7 @@ this.CheckInterrupts = function () {
 
         // MBC CONTROL //
         if (addr < 0x8000) {
-            /*var mbcControl = mem.mbcControl [this.mbc];
-            if (mbcControl)
-                mbcControl ();*/
+            mem.mbcWrite [mem.mbc] (addr, val);
             return val;
         }
         // VIDEO //
@@ -395,7 +393,7 @@ this.CheckInterrupts = function () {
         if (addr < 0xe000) {
             return mem.wram [addr - 0xc000] = val;
         }
-        if (addr < 0xff00) {
+        if (addr < 0xfe00) {
             return mem.wram [addr - 0xe000] = val; // Echo ram
         }
         // VIDEO (oam) //

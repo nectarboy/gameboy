@@ -20,11 +20,14 @@ const Mem = function (nes, cpu) {
 
         // this.ioreg [0x44] = 144; // (Stub)
 
-        // Reset rom properties
-        this.mbc = 0;
+        // Reset mbc properties
         this.rombank = 1;
         this.rambank = 1;
-        this.ramenabled = false;
+
+        this.extrarombits = 0;
+
+        this.maxrombanks = 0;
+        this.maxrambanks = 0;
     };
 
     this.Error = function (msg) {
@@ -39,17 +42,7 @@ const Mem = function (nes, cpu) {
 
     // Cartrom - 0x0000 - 0x8000 (last 0x4000 switchable)
     this.cartrom = new Uint8Array (0x8000);
-
-        // Rom properties
-        this.mbc = 0;
-
-        this.romname = '';
-        this.maxrombanks = 0;
-        this.rombank = 1;
-
-        this.ramenabled = false;
-        this.maxrambanks = 0;
-        this.rambank = 1;
+    this.romname = '';
 
     // Video - 0x8000 - 0x9fff
     this.vram = new Uint8Array (0x2000); // 8KB of video ram
@@ -156,8 +149,11 @@ const Mem = function (nes, cpu) {
             lcdc.window_tilemap_alt     = bits [6];
             lcdc.lcd_enabled            = bits [7];
 
-            if (!lcdc.lcd_enabled)
-                nes.ppu.stat.WriteMode (0);
+            // When the lcd is disabled ...
+            if (!lcdc.lcd_enabled) {
+                nes.ppu.stat.WriteMode (0); // LCDC stat mode is always 0
+                nes.ppu.ClearImg (); // Screen is blank
+            }
 
             mem.ioreg [0x40] = val;
         },
@@ -250,7 +246,6 @@ const Mem = function (nes, cpu) {
             // No MBC
             case 0x0: {
                 this.mbc = 0;
-                this.ramenabled = false;
                 break;
             }
 
@@ -339,21 +334,71 @@ const Mem = function (nes, cpu) {
 
     // =============== //   MBC Controllers //
 
-    this.mbcControl = {
+    // MBC properties
+    this.mbc = 0;
+
+    this.rombank = 1;
+    this.rambank = 1;
+
+    this.extrarombits = 0;
+
+    this.ramenabled = false;
+
+    this.maxrombanks = 0;
+    this.maxrambanks = 0;
+
+    this.mbcRead = {
+        // No MBC
+        0: function (addr) {
+            return mem.cartrom [addr];
+        },
+        // MBC 1
         1: function (addr) {
+            return mem.cartrom [
+                (mem.rombank * 0x4000)
+                + (addr & 0x3fff)
+            ];
+        }
+    };
+
+    this.mbcWrite = {
+        // No MBC
+        0: function (addr, val) {
+            // u are a stinky poof
+        },
+        // MBC 1
+        1: function (addr, val) {
             // EXTRA RAM ENABLE //
             if (addr < 0x2000) {
-                this.ramenabled = (val & 0xf) === 0x0a; // Value with 0xa enables
+                mem.ramenabled = (val & 0xf) === 0x0a; // Value with 0xa enables
                 return val;
             }
             // ROM BANK NUMBER //
             if (addr < 0x4000) {
-                this.rombank = val | 0b11100000; // First 3 bits are always 1
+                mem.rombank = val & 0b00011111; // Discard first 3 bits
+
+                if (mem.maxrambanks < 4)
+                    mem.rombank |= mem.extrarombits << 5;
+
+                mem.rombank += (
+                    mem.rombank === 0
+                    || mem.rombank === 0x20
+                    || mem.rombank === 0x40 
+                    || mem.rombank === 0x60
+                );
+
                 return val;
             }
-            // EXTRA ROM BANK BITS //
+            // RAM BANK NUMBER or EXTRA ROM BANK BITS //
             if (addr < 0x6000) {
+                var crumb = val & 3;
 
+                if (mem.maxrombanks >= 64)
+                    mem.extrarombits = crumb;
+                else
+                    mem.rambank = crumb;
+
+                return val;
             }
         }
     };

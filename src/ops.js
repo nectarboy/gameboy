@@ -384,7 +384,7 @@ const Ops = function (cpu) {
 
         DEC_sp () {
             cpu.writeSP (cpu.sp - 1);
-            cpu.cycles += 4;
+            cpu.cycles += 8;
         },
 
         // DE - EI
@@ -576,7 +576,7 @@ const Ops = function (cpu) {
             var chunk = ops.Fetch16 ();
             reg.a = cpu.readByte (chunk);
 
-            cpu.cycles += 8;
+            cpu.cycles += 16;
         },
 
         // LD HLI - LD HLD
@@ -1547,7 +1547,7 @@ const Ops = function (cpu) {
                         if (hi === 0xf0)
                             return this.INS.EI ();
                         // PANIC
-                        return this.IllOp ();
+                        return this.IllOp (op, pc);
                     }
                     case 0xc: {
                         // CALL Z n16
@@ -1557,14 +1557,14 @@ const Ops = function (cpu) {
                         if (hi === 0xd0)
                             return this.INS.CALL_cc_n16 (flag.car);
                         // PANIC
-                        return this.IllOp ();
+                        return this.IllOp (op, pc);
                     }
                     case 0xd: {
                         // CALL n16
                         if (hi === 0xc0)
                             return this.INS.CALL_n16 ();
                         // PANIC
-                        return this.IllOp ();
+                        return this.IllOp (op, pc);
                     }
                     case 0xe: {
                         if (hi === 0xc0)
