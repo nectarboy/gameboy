@@ -34,7 +34,7 @@ const Ops = function (cpu) {
 
     // Bit Operations //
     function testBit (n, b) {
-        return (n & (1 << b)) !== 0;
+        return (n & (1 << b)) ? true : false;
     }
     function clearBit (n, b) {
         return n & ~(1 << b);
@@ -198,7 +198,7 @@ const Ops = function (cpu) {
 
             var sum = cpu.sp + e8;
             flag.hcar = checkHcar (cpu.sp, e8);
-            flag.car = checkCar (sum);
+            flag.car = (sum & 0xff) < (cpu.sp & 0xff);
 
             cpu.writeSP (sum);
 
@@ -637,7 +637,7 @@ const Ops = function (cpu) {
             flag.zero =
             flag.sub = false;
             flag.hcar = checkHcar (cpu.sp, e8);
-            flag.car = checkCar (sum);
+            flag.car = (sum & 0xff) < (cpu.sp & 0xff);
 
             cpu.cycles += 12; // Phew .. !
         },
@@ -1103,7 +1103,10 @@ const Ops = function (cpu) {
 
         // STOP - WIP
         STOP () {
-            // ...
+            cpu.Panic ('Shitfuck uh ,, We came across a STOP instruction ..! PANIC AAAAA');
+
+            // GBC behavior ig - this wont execute on DMG so nyah
+            cpu.WriteByte (0xff04, 0); // Reset div
             cpu.pc = (cpu.pc + 1) & 0xffff; // Imaginary fetch 
         },
 
@@ -1622,9 +1625,16 @@ const Ops = function (cpu) {
         }
     };
 
-    var biglog = '';
+    /* TODO
+     * rework it so on setup, it gets all possible
+       opcodes from algorithmic decoding and maps it into an object
+       so its faster :D
+     * thats it ig DO YOUR STUDIES BRUH !!!
+     */
+
+    /*var biglog = '';
     var logcount = 0;
-    var logmax = 47932; // Lines in peach's bootlog
+    var logmax = 47932; // Lines in peach's bootlog*/
 
     this.ExeIns = function () {
         // Logging

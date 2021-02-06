@@ -18,12 +18,46 @@ const Ppu = function (nes) {
         lcd_enabled: false
     };
 
+    // LCDC status
+    this.stat = {
+        // Interrupt enables
+        coin_irq: false,    // Bit 6
+        mode2_irq: false,   // Bit 5
+        mode1_irq: false,   // Bit 4
+        mode0_irq: false,   // Bit 3
+
+        // Flags
+        coincidence: false, // Bit 2
+        mode: 0,            // Bits 1 - 0
+
+        // Flag setting methods
+        SetCoincidence () {
+            this.coincidence = true;
+            mem.ioreg [0x41] |= (1 << 6); // Set bit 6
+        },
+        ClearCoincidence () {
+            this.coincidence = false;
+            mem.ioreg [0x41] &= ~(1 << 6); // Clear bit 6
+        },
+
+        WriteMode (crumb) {
+            this.mode = crumb;
+
+            // Write crumb to bits 1 - 0
+            mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
+            mem.ioreg [0x41] |= crumb; // Write crumb to last 2 bits
+        }
+    };
+
     this.palshades = {
         0: 0,
         1: 0,
         2: 0,
         3: 0
     };
+
+    this.vblanking =
+    this.hblanking = false;
 
     // =============== //   Screen Elements //
 
@@ -130,16 +164,25 @@ const Ppu = function (nes) {
     this.DoScanline = function () {
         if (!this.lcdc.lcd_enabled)
             return;
-        // Only advance line if vblanking
+
+        // Vblank period ...
         if (this.ly >= gbheight) {
-            //if (this.ly === gbheight)
-                //cpu.iflag.SetBit (0); // Request vblank interrupt
+            if (this.ly === gbheight) {
+                cpu.iflag.SetVblank (); // Set vblank
+                this.stat.WriteMode (1);
+            }
 
             return this.AdvanceLine ();
         }
+        /* The following is very wrong and WAS 
+         * only used to hack my way thru tetris >:3*/
+        /*if (cpu.iflag.vblank) {
+            cpu.iflag.ClearVblank ();
+        }*/
 
-        // Prepare x and y
+        // Prepare for a new scanline
         this.lx = 0;
+        this.stat.WriteMode (2); // Searching OAM
 
         // Line positions with scroll in context
         var x = (this.lx + this.scrollx) & 0xff;
@@ -161,13 +204,9 @@ const Ppu = function (nes) {
             var patind = cpu.readByte (mapind); // Get tile index at map
 
             // Calculate tile data address
-            /*var addr =
-                tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
-                + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes*/
 
-            // Complement tile index if signed adressing mode
             if (!this.lcdc.signed_addressing)
-                patind = patind << 24 >> 24;
+                patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
 
             var addr =
                 tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
@@ -192,17 +231,21 @@ const Ppu = function (nes) {
             x &= 0xff;
         }
 
-        // Vblanking
+        // Advance to the next line
         this.AdvanceLine ();
 
         // End
         // cpu.cycles += 456; // 114 * 4
     };
 
-    // DEBUG SCANLINE - draw tilemap
+    // DEBUG SCANLINE - draws tile data
     this.DebugScanline = function () {
         // When vblanking ...
         if (this.ly >= gbheight) {
+            if (this.lcdc.lcd_enabled && this.ly === gbheight) {
+                //cpu.iflag.SetVblank (); // Set vblank
+            }
+
             return this.AdvanceLine ();
         }
 

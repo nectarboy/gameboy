@@ -1,4 +1,4 @@
-const Mem = function (nes) {
+const Mem = function (nes, cpu) {
 
     var mem = this;
 
@@ -12,6 +12,11 @@ const Mem = function (nes) {
         this.ioreg.fill (0);
         this.hram.fill (0);
         this.iereg = 0;
+
+        // Fill unused bits in io registers
+        cpu.writeByte (0xff0f, 0); // IF
+        cpu.writeByte (0xff07, 0); // TAC
+        cpu.writeByte (0xff41, 0); // LCDC STAT
 
         // this.ioreg [0x44] = 144; // (Stub)
 
@@ -70,32 +75,173 @@ const Mem = function (nes) {
     // interrupt enable register - 0xffff
     this.iereg = 0;
 
+    // =============== //   IO Registers //
+    /* TODO
+     * rework this so theres an object containing all mapped registers ?
+     * make a function that does stuff on write, but its a switch statement 
+     */
+
+    this.ioonwrite = {
+        // Serial Ports - used by test roms for output
+        [0x01]: function (val) {
+            mem.ioreg [0x01] = val;
+            // console.log ('01: ' + val.toString (16));
+        },
+        [0x02]: function (val) {
+            mem.ioreg [0x02] = val;
+            // console.log ('02: ' + val.toString (16));
+        },
+
+        // Div timer - incs every 256 cycles (TODO)
+        [0x04]: function (val) {
+            cpu.div = mem.ioreg [0x04] = 0; // Div is reset on write
+        },
+        // Tima timer - incs at a variable rate
+        [0x05]: function (val) {
+            cpu.tima = mem.ioreg [0x05] = val;
+        },
+
+        // Tima module
+        [0x06]: function (val) {
+            cpu.timamod = mem.ioreg [0x06] = val;
+        },
+        // TAC
+        [0x07]: function (val) {
+            cpu.timaenable = (val & (1 << 2)) ? true : false; // Bit 2
+
+            var ii = val & 0b11; // Input clock select
+
+            if (ii === 0) {
+                cpu.timarate = cpu.cyclespersec / 1024;
+            }
+            else {
+                // 01   - 16 cycles
+                // 10   - 64 cycles
+                // 11   - 256 cycles
+                cpu.timarate = (4 << (ii * 2));
+            }
+
+            mem.ioreg [0x07] // Set tac ioreg
+                = val | 0b11111000; // Mask out unused bits
+        },
+
+        // IF
+        [0x0f]: function (val) {
+            // Set interrupt flags
+            cpu.iflag.vblank      = (val & 1) ? true : false;
+            cpu.iflag.lcd_stat    = (val & (1 << 1)) ? true : false;
+            cpu.iflag.timer       = (val & (1 << 2)) ? true : false;
+            cpu.iflag.serial      = (val & (1 << 3)) ? true : false;
+            cpu.iflag.joypad      = (val & (1 << 4)) ? true : false;
+
+            // Write to 0xff0f
+            mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
+        },
+
+        // LCDC
+        [0x40]: function (val) {
+            var bits = [];
+            var lcdc = nes.ppu.lcdc;
+
+            for (var i = 0; i < 8; i ++) {
+                bits [i] = (val & (1 << i)) ? true : false;
+            }
+
+            lcdc.bg_priority            = bits [0];
+            lcdc.sprite_enabled         = bits [1];
+            lcdc.sprite_size            = bits [2];
+            lcdc.bg_tilemap_alt         = bits [3];
+            lcdc.signed_addressing      = bits [4];
+            lcdc.window_enabled         = bits [5];
+            lcdc.window_tilemap_alt     = bits [6];
+            lcdc.lcd_enabled            = bits [7];
+
+            if (!lcdc.lcd_enabled)
+                nes.ppu.stat.WriteMode (0);
+
+            mem.ioreg [0x40] = val;
+        },
+
+        // LCDC status
+        [0x41]: function (val) {
+            var stat = nes.ppu.stat;
+
+            stat.coin_irq   = (val & (1 << 6)) ? true : false; // Bit 6
+            stat.mode2_irq  = (val & (1 << 5)) ? true : false; // Bit 5
+            stat.mode1_irq  = (val & (1 << 4)) ? true : false; // Bit 4
+            stat.mode0_irq  = (val & (1 << 3)) ? true : false; // Bit 3
+
+            // write to 0xff41
+            mem.ioreg [0x41] |=
+               ((val | 0b10000000) // Bit 7 is unused
+               & 0b11111000) // Last 3 bits are read only
+        },
+
+        // BG scroll y
+        [0x42]: function (val) {
+            nes.ppu.scrolly = mem.ioreg [0x42] = val;
+        },
+        // BG scroll x
+        [0x43]: function (val) {
+            nes.ppu.scrollx = mem.ioreg [0x43] = val;
+        },
+
+        // LCY
+        [0x44]: function (val) {
+
+        },
+
+        // Pallete shades
+        [0x47]: function (val) {
+            var palshades = nes.ppu.palshades;
+
+            for (var i = 0; i < 4; i ++) {
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                palshades [i] = (val >> (i << 1)) & 3;
+            }
+
+            mem.ioreg [0x47] = val;
+        },
+
+        // Disable bootrom
+        [0x50]: function (val) {
+            if (cpu.bootromAtm && val !== 0) {
+                cpu.bootromAtm = false;
+                console.log ('bootrom disabled.');
+            }
+            mem.ioreg [0x50] = val;
+        },
+    };
+
     // =============== //   Loading and Resetting //
 
     this.LoadRom = function (rom) {
         if (typeof rom !== 'object')
             return this.Error ('this is not a rom !');
 
-        this.cartrom = new Uint8Array (rom);
-        this.GetRomProps ();
+        rom = new Uint8Array (rom);
 
-        nes.cpu.hasrom = true;
+        this.GetRomProps (rom);
+        this.cartrom = rom;
+
+        cpu.hasrom = true;
     };
 
-    this.GetRomProps = function () {
+    this.GetRomProps = function (rom) {
         // Rom name //
         this.romname = '';
         for (var i = 0x134; i < 0x13f; i ++) {
-            this.romname += String.fromCharCode (mem.cartrom [i]);
+            this.romname += String.fromCharCode (rom [i]);
         }
         document.title = 'Pollen Boy - ' + this.romname;
 
         // GBC only mode //
-        if (mem.cartrom [0x143] === 0xc0)
+        if (rom [0x143] === 0xc0)
             this.Error ('rom works only on gameboy color !');
 
         // Check MBC //
-        switch (mem.cartrom [0x147]) {
+        switch (rom [0x147]) {
             // No MBC + ram
             case 0x8:
             case 0x9: {
@@ -159,7 +305,7 @@ const Mem = function (nes) {
         }
 
         // Max rom banks
-        var romsize = mem.cartrom [0x148];
+        var romsize = rom [0x148];
 
         if (romsize > 8) {
             if (romsize === 0x54)
@@ -176,7 +322,7 @@ const Mem = function (nes) {
         }
 
         // Max ram banks
-        var ramsize = mem.cartram [0x149];
+        var ramsize = rom [0x149];
 
         if (ramsize > 0 && ramsize < 5) {
             this.cartram = Math.floor ((1 << (ramsize * 2 - 1)) / 8);
@@ -189,87 +335,6 @@ const Mem = function (nes) {
             else
                 this.Error ('invalid ram size !');
         }
-    };
-
-    // =============== //   IO Registers //
-
-    this.ioonwrite = {
-        // Serial Ports - used by test roms for output
-        [0x01]: function (val) {
-            mem.ioreg [0x01] = val;
-            // console.log ('01: ' + val.toString (16));
-        },
-        [0x02]: function (val) {
-            mem.ioreg [0x02] = val;
-            // console.log ('02: ' + val.toString (16));
-        },
-
-        // Div timer - incs every 256 cycles (TODO)
-        [0x04]: function (val) {
-            mem.ioreg [0x04] = 0; // Reset
-        },
-
-        // Interrupt flags
-        [0x0f]: function (val) {
-            nes.cpu.iflag.Write (val);
-        },
-
-        // LCDC
-        [0x40]: function (val) {
-            var bits = [];
-            var lcdc = nes.ppu.lcdc;
-
-            for (var i = 0; i < 8; i ++) {
-                bits [i] = (val & (1 << i)) !== 0;
-            }
-
-            lcdc.bg_priority = bits [0];
-            lcdc.sprite_enabled = bits [1];
-            lcdc.sprite_size = bits [2];
-            lcdc.bg_tilemap_alt = bits [3];
-            lcdc.signed_addressing = bits [4];
-            lcdc.window_enabled = bits [5];
-            lcdc.window_tilemap_alt = bits [6];
-            lcdc.lcd_enabled = bits [7];
-
-            mem.ioreg [0x40] = val;
-        },
-
-        // BG scroll y
-        [0x42]: function (val) {
-            nes.ppu.scrolly = mem.ioreg [0x42] = val;
-        },
-        // BG scroll x
-        [0x43]: function (val) {
-            nes.ppu.scrollx = mem.ioreg [0x43] = val;
-        },
-
-        // LCY
-        [0x44]: function (val) {
-
-        },
-
-        // Pallete shades
-        [0x47]: function (val) {
-            var palshades = nes.ppu.palshades;
-
-            for (var i = 0; i < 4; i ++) {
-                // Get specific crumbs from val
-                // A 'crumb' is a 2 bit number, i coined that :D
-                palshades [i] = (val >> (i << 1)) & 3;
-            }
-
-            mem.ioreg [0x47] = val;
-        },
-
-        // Disable bootrom
-        [0x50]: function (val) {
-            if (nes.cpu.bootromAtm && val !== 0) {
-                nes.cpu.bootromAtm = false;
-                console.log ('bootrom disabled.');
-            }
-            mem.ioreg [0x50] = val;
-        },
     };
 
     // =============== //   MBC Controllers //

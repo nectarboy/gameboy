@@ -18,7 +18,7 @@ const Cpu = function (nes) {
         return fps;
     };
 
-    this.defaultfps = 360; // Preferably 120 ? 360 or higher ???
+    this.defaultfps = 120; // Preferably 120 ? 360 or higher ???
     this.SetFPS (this.defaultfps);
 
     // =============== //   Basic Elements //
@@ -114,9 +114,6 @@ const Cpu = function (nes) {
 
     // =============== //   Interrupts //
 
-    // this.requestingInts = false;
-    // this.enabledInts = false;
-
     // IE and IF
     this.ienable = {
         vblank: false,      // Bit 0
@@ -125,12 +122,12 @@ const Cpu = function (nes) {
         serial: false,      // Bit 3
         joypad: false,      // Bit 4
 
-        SetBit: function (bit) {
+        /*SetBit: function (bit) {
             return this.Write (cpu.mem.iereg | (1 << bit)); // Set bit
         },
         ClearBit: function (bit) {
             return this.Write (cpu.mem.iereg & ~(1 << bit)); // Clear bit
-        },
+        },*/
 
         Write (val) {
             // Set interrupt enables
@@ -140,11 +137,8 @@ const Cpu = function (nes) {
             this.serial      = (val & (1 << 3)) ? true : false;
             this.joypad      = (val & (1 << 4)) ? true : false;
 
-            // If any interrupts are enabled ...
-            // cpu.enabledInts = (val & 0b00011111) ? true : false;
-
             // Write to 0xffff
-            return cpu.mem.iereg = val; // Unused bits might always be 1 ?? idk
+            return cpu.mem.iereg = val;
         }
     };
 
@@ -155,67 +149,157 @@ const Cpu = function (nes) {
         serial: false,      // Bit 3
         joypad: false,      // Bit 4
 
-        SetBit: function (bit) {
-            return this.Write (cpu.mem.ioreg [0x0f] | (1 << bit)); // Set bit
+        // Bit setting methods
+        SetVblank () {
+            cpu.mem.ioreg [0x0f] |= 0b00000001; // Set bit 0
+            this.vblank = true;
         },
-        ClearBit: function (bit) {
-            return this.Write (cpu.mem.ioreg [0x0f] & ~(1 << bit)); // Clear bit
+        SetLcdStat () {
+            cpu.mem.ioreg [0x0f] |= 0b00000010; // Set bit 1
+            this.lcd_stat = true;
+        },
+        SetTimer () {
+            cpu.mem.ioreg [0x0f] |= 0b00000100; // Set bit 2
+            this.timer = true;
+        },
+        SetSerial () {
+            cpu.mem.ioreg [0x0f] |= 0b00001000; // Set bit 3
+            this.serial = true;
+        },
+        SetJoypad () {
+            cpu.mem.ioreg [0x0f] |= 0b00010000; // Set bit 4
+            this.joypad = true;
         },
 
-        Write (val) {
-            // Set interrupt flags
-            this.vblank      = (val & 1) ? true : false;
-            this.lcd_stat    = (val & (1 << 1)) ? true : false;
-            this.timer       = (val & (1 << 2)) ? true : false;
-            this.serial      = (val & (1 << 3)) ? true : false;
-            this.joypad      = (val & (1 << 4)) ? true : false;
-
-            // If any interrupts are requested ...
-            // cpu.requestingInts = (val & 0b00011111) ? true : false;
-
-            // Write to 0xff0f
-            return cpu.mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
+        // Bit clearing methods
+        ClearVblank () {
+            cpu.mem.ioreg [0x0f] &= 0b11111110; // Clear bit 0
+            this.vblank = false;
+        },
+        ClearLcdStat () {
+            cpu.mem.ioreg [0x0f] &= 0b11111101; // Clear bit 1
+            this.lcd_stat = false;
+        },
+        ClearTimer () {
+            cpu.mem.ioreg [0x0f] &= 0b11111011; // Clear bit 2
+            this.timer = false;
+        },
+        ClearSerial () {
+            cpu.mem.ioreg [0x0f] &= 0b11110111; // Clear bit 3
+            this.serial = false;
+        },
+        ClearJoypad () {
+            cpu.mem.ioreg [0x0f] &= 0b11101111; // Clear bit 4
+            this.joypad = false;
         }
     };
 
-    this.CheckInterrupts = function () {
-        // Check if 
-        if (!this.ime)
-            return;
+this.CheckInterrupts = function () {
+    if (!this.ime)
+        return;
 
-        // Vblank interrupt !
-        if (this.ienable.vblank && this.iflag.vblank) {
-            this.ExeInterrupt (0x40, 0);
-            // console.log ('V-BLANK');
-        }
-        // LCD-stat interrupt !
-        else if (this.ienable.lcd_stat && this.iflag.lcd_stat) {
-            this.ExeInterrupt (0x48, 1);
-        }
-        // Timer interrupt !
-        else if (this.ienable.timer && this.iflag.timer) {
-            this.ExeInterrupt (0x50, 2);
-        }
-        // Serial interrupt !
-        else if (this.ienable.serial && this.iflag.serial) {
-            this.ExeInterrupt (0x58, 3);
-        }
-        // Joypad interrupt !
-        else if (this.ienable.joypad && this.iflag.joypad) {
-            this.ExeInterrupt (0x60, 4);
-        }
-    };
+    // Vblank interrupt !
+    if (this.ienable.vblank && this.iflag.vblank) {
+        this.ExeInterrupt (0x40);
+        this.iflag.ClearVblank ();
+
+        // console.log ('V-BLANK');
+    }
+    // LCD-stat interrupt !
+    else if (this.ienable.lcd_stat && this.iflag.lcd_stat) {
+        this.ExeInterrupt (0x48);
+        this.iflag.ClearLcdStat ();
+    }
+    // Timer interrupt !
+    else if (this.ienable.timer && this.iflag.timer) {
+        this.ExeInterrupt (0x50);
+        this.iflag.ClearTimer ();
+    }
+    // Serial interrupt !
+    else if (this.ienable.serial && this.iflag.serial) {
+        this.ExeInterrupt (0x58);
+        this.iflag.ClearSerial ();
+    }
+    // Joypad interrupt !
+    else if (this.ienable.joypad && this.iflag.joypad) {
+        this.ExeInterrupt (0x60);
+        this.iflag.ClearJoypad ();
+    }
+};
 
     this.ExeInterrupt = function (vec, bit) {
-        this.ops.INS.RST_vec (vec);
-        this.ops.INS.DI ();
+        this.ops.INS.RST_vec (vec);     // 16 cycles
+        this.ops.INS.DI ();             // 4 cycles
+        // 20 cycles in total :3
+    };
 
-        this.iflag.ClearBit (bit);
+    // =============== //   Timers //
+
+    this.div =
+    this.tima = 0;
+
+    this.timamod = 0; // What will be loaded into tima when it overflows
+
+    this.timaenable = false;
+
+    this.timarate = 0;
+    this.divrate = 256; // Cycles
+
+    // Clock tick functions
+    this.DivTick = function () {
+        return this.div // Increment div ...
+            = cpu.mem.ioreg [0x04] += 1; // ... while setting div ioreg
+    };
+
+    this.TimaTick = function () {
+        if (!this.timaenable)
+            return;
+        this.tima ++;
+
+        // Overflow check
+        if (this.tima > 0xff) {
+            this.tima = this.timamod;
+            this.iflag.SetTimer (); // Request timer interrupt
+        }
+
+        return cpu.mem.ioreg [0x05] = this.tima; // Set tima ioreg
+    };
+
+    // =============== //   CPU Timings //
+
+    // Timers
+    this.divclocks =
+    this.timaclocks = 0;
+    this.HandleTimers = function (cycles) {
+        this.divclocks += cycles;
+        this.timaclocks += cycles;
+
+        while (this.divclocks >= this.divrate) {
+            this.DivTick ();
+            this.divclocks -= this.divrate;
+        }
+
+        while (this.timaclocks >= this.timarate) {
+            this.TimaTick ();
+            this.timaclocks -= this.timarate;
+        }
+    };
+
+    // PPU
+    this.ppuclocks = 0;
+    this.ppurate = 456; // Cycles per scanline
+    this.HandlePpu = function (cycles) {
+        this.ppuclocks += cycles;
+
+        while (this.ppuclocks >= this.ppurate) {
+            nes.ppu.DoScanline ();
+            this.ppuclocks -= this.ppurate;
+        }
     };
 
     // =============== //   Memory //
 
-    this.mem = new Mem (nes);
+    this.mem = new Mem (nes, this);
 
     /* uint8 read_byte(uint16 addr) {
           if (addr < 0x100 && bootrom_enabled)
@@ -293,9 +377,9 @@ const Cpu = function (nes) {
 
         // MBC CONTROL //
         if (addr < 0x8000) {
-            var mbcControl = mem.mbcControl [this.mbc];
+            /*var mbcControl = mem.mbcControl [this.mbc];
             if (mbcControl)
-                mbcControl ();
+                mbcControl ();*/
             return val;
         }
         // VIDEO //
@@ -336,7 +420,8 @@ const Cpu = function (nes) {
             return mem.hram [addr - 0xff80] = val;
         }
         // INTERRUPT
-        return this.ienable.Write (val);
+        this.ienable.Write (val);
+        return val;
     };
 
     this.read16 = function (addr) {
@@ -370,20 +455,23 @@ const Cpu = function (nes) {
     this.Step = function (extracycles) {
         var ppu = nes.ppu;
 
+        var precycles =
         this.cycles = 0;
-        var precycles = 0;
 
         var cycles = this.cyclesperframe - extracycles;
 
         while (cycles > 0) {
             // Handle program flow
             this.ops.ExeIns ();
-            ppu.DoScanline ();
             this.CheckInterrupts ();
 
-            // Reset cycle timing
+            // Get cycles elapsed
             var cycled = this.cycles - precycles;
             precycles = this.cycles;
+
+            // Handle timing
+            this.HandleTimers (cycled);
+            this.HandlePpu (cycled);
 
             cycles -= cycled;
         }

@@ -5,8 +5,8 @@
 		<title>Pollen Boy</title>
 		<meta charset='UTF-8'>
 
-		<link rel='stylesheet' href='src/css/index.css'>
-		<link rel='shortcut icon' href='src/img/favicon.png' type='image/png'>
+		<link rel='stylesheet' href='css/index.css'>
+		<link rel='shortcut icon' href='img/favicon.png' type='image/png'>
 	</head>
 	<body>
 
@@ -27,7 +27,7 @@
 					<div class='screenwrap'>
 						<canvas id='nanacanvas' width='160' height='144'></canvas>
 						<div class='center_flex_div'>
-							<img src='src/img/gb_logo.png' class='gb_logo' draggable='false'>
+							<img src='img/gb_logo.png' class='gb_logo' draggable='false'>
 						</div>
 					</div>
 				</div>
@@ -62,19 +62,31 @@
 					const nanaCanvas = document.getElementById ('nanacanvas');
 					const nanaFin = document.getElementById ('nanafin');
 
-					const gameboy = new Gameboy ();
-					gameboy.AttachCanvas (nanaCanvas);
+					// Gameboy
+					var gb;
+					function SetupGB () {
+						if (gb)
+							return;
 
+						gb = new Gameboy ();
+						gb.AttachCanvas (nanaCanvas);
+					}
+
+					SetupGB (); // For debugging shh
+
+					// File reading
 					nanaFin.onchange = function (evt) {
 						var file = evt.target.files [0];
 						if (!file)
 							return;
 
+						SetupGB ();
+
 						// Try removing the below to test no rom behavior !
-						gameboy.ReadRomFile (file, () => {
+						gb.ReadRomFile (file, () => {
 							// And then
-							gameboy.Reset ();
-							gameboy.Start ();
+							gb.Reset ();
+							gb.Start ();
 						});
 					};
 
