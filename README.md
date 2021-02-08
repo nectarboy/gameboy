@@ -27,7 +27,8 @@ Open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
 A big thank you to everyone here for helping me out. 
 seriously i woulda given up loong ago if it weren't for yall <333
 
-- [The emudev discord (tysm yall <3)](https://discord.gg/dkmJAes)
+- [YY-CHR - the tile editor](https://w.atwiki.jp/yychr/) (for that kickass purple pallete !!!)
+- [The emudev discord](https://discord.gg/dkmJAes) (tysm yall <3)
 - [The emudev community as a whole](https://www.reddit.com/r/EmuDev/)
 - [The pan-docs fsss](https://discord.gg/dkmJAes)
 - [The RGBDS instruction page :3](https://rgbds.gbdev.io/docs/v0.4.1/gbz80.7)
