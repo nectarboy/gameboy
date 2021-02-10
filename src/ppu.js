@@ -7,6 +7,8 @@ const Ppu = function (nes) {
 
     // =============== //   Basic Elements //
 
+    this.vblanking = false;
+
     this.lcdc = {
         bg_priority: false,
         sprite_enabled: false,
@@ -40,14 +42,16 @@ const Ppu = function (nes) {
             mem.ioreg [0x41] &= ~(1 << 6); // Clear bit 6
         },
 
-        WriteMode (crumb) {
-            this.mode = crumb;
+        WriteMode (mode) {
+            this.mode = mode;
 
-            // Write crumb to bits 1 - 0
+            // Write mode to bits 1 - 0
             mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
-            mem.ioreg [0x41] |= crumb; // Write crumb to last 2 bits
+            mem.ioreg [0x41] |= mode; // Write mode to last 2 bits
         }
     };
+
+    this.lyc = 0;
 
     this.palshades = {
         0: 0,
@@ -56,8 +60,7 @@ const Ppu = function (nes) {
         3: 0
     };
 
-    this.vblanking =
-    this.hblanking = false;
+    this.drawing = false;
 
     // =============== //   Screen Elements //
 
@@ -133,19 +136,35 @@ const Ppu = function (nes) {
 
     // Reset
     this.Reset = function () {
-        // Reset blanking status
-        this.hblanking = 
+        this.vblanking = false;
+        this.drawing = false;
+
+        // Reset scanline positions
+        this.lx =
+        this.ly =
+        this.subty =
+
+        this.scrollx =
+        this.scrolly = 0;
+
+        // Reset lcdc stat flags
+        this.stat.coincidence = false;
+        this.stat.mode = 0;
+    };
+
+    // What happens when the lcd is turned off
+    this.OnLcdOff = function () {
         this.vblanking = false;
 
-        // Reset lcdc
-        this.lcdc.bg_priority = false;
-        this.lcdc.sprite_enabled = false;
-        this.lcdc.sprite_size = false;
-        this.lcdc.bg_tilemap_alt = false;
-        this.lcdc.signed_addressing = false;
-        this.lcdc.window_enabled = false;
-        this.lcdc.window_tilemap_alt = false;
-        this.lcdc.lcd_enabled = false;
+        this.stat.WriteMode (0); // LCDC stat mode is 0
+        this.ClearImg (); // Screen is blank
+        this.drawing = false; // Video data is accessible now
+    };
+
+    this.OnLcdOn = function () {
+        // Ly starts from 0
+        this.ly = 
+        mem.ioreg [0x44] = 0;
     };
 
     // =============== //   Background Drawing //
@@ -165,81 +184,135 @@ const Ppu = function (nes) {
         if (!this.lcdc.lcd_enabled)
             return;
 
-        // Vblank period ...
-        if (this.ly >= gbheight) {
-            if (this.ly === gbheight) {
-                cpu.iflag.SetVblank (); // Set vblank
-                this.stat.WriteMode (1);
+        var shouldIrq = false;
+
+        if (!this.vblanking) {
+
+            if (!this.drawing) {
+                this.stat.WriteMode (0);
+                this.drawing = true;
             }
 
-            return this.AdvanceLine ();
+            // Prepare for a new scanline !!!
+            this.lx = 0;
+
+            var x = (this.lx + this.scrollx) & 0xff;
+            var y = (this.ly + this.scrolly) & 0xff;
+
+            this.subty = y & 7;
+
+            // Calculate tile data base
+            var tiledatabase = 0x9000 - (this.lcdc.signed_addressing * 0x1000);
+
+            // Calculate background map base
+            var bgmapbase = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
+
+            var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
+
+            while (this.lx < gbwidth) {
+                var mapind = mapindy + (x >> 3); // (x / 8) Background tile map
+                var patind = cpu.readByte (mapind); // Get tile index at map
+
+                // Calculate tile data address
+
+                if (!this.lcdc.signed_addressing)
+                    patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
+
+                var addr =
+                    tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
+                    + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes
+
+                // Get tile line data
+                var lobyte = cpu.readByte (addr ++);
+                var hibyte = cpu.readByte (addr);
+
+                // Mix and draw current tile line pixel
+                var bitmask = 1 << ((x ^ 7) & 7);
+                var px = this.palshades [
+                    ((hibyte & bitmask) ? 2 : 0)
+                    | ((lobyte & bitmask) ? 1 : 0)
+                ];
+                this.PutPixel (this.lx, this.ly, px);
+
+                // Fin !
+                this.lx ++;
+                x ++;
+                x &= 0xff;
+            }
+
+            // Check if should request mode 0 / 2 irq
+            shouldIrq = this.stat.mode0_irq || this.stat.mode2_irq;
+
         }
-        /* The following is very wrong and WAS 
-         * only used to hack my way thru tetris >:3*/
-        /*if (cpu.iflag.vblank) {
-            cpu.iflag.ClearVblank ();
-        }*/
+        // Finally ...
 
-        // Prepare for a new scanline
-        this.lx = 0;
-        this.stat.WriteMode (2); // Searching OAM
+        // Check for stat interrupt
+        var whatACoin = this.ly === this.lyc;
+        if (whatACoin)
+            this.stat.SetCoincidence ();
+        else if (this.stat.coincidence)
+            this.stat.ClearCoincidence ();
 
-        // Line positions with scroll in context
-        var x = (this.lx + this.scrollx) & 0xff;
-        var y = (this.ly + this.scrolly) & 0xff;
+        // Check if should request coincidence irq
+        !shouldIrq && (shouldIrq = whatACoin && this.stat.coin_irq);
 
-        // Draw background
-        this.subty = y & 7;
+        if (shouldIrq)
+            cpu.iflag.SetLcdStat ();
 
-        // Calculate tile data base
-        var tiledatabase = 0x9000 - (this.lcdc.signed_addressing * 0x1000);
-
-        // Calculate background map base
-        var bgmapbase = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
-
-        var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
-
-        while (this.lx < gbwidth) {
-            var mapind = mapindy + (x >> 3); // (x / 8) Background tile map
-            var patind = cpu.readByte (mapind); // Get tile index at map
-
-            // Calculate tile data address
-
-            if (!this.lcdc.signed_addressing)
-                patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
-
-            var addr =
-                tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
-                + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes
-
-            // Get tile line data
-            var lobyte = cpu.readByte (addr ++);
-            var hibyte = cpu.readByte (addr);
-
-            // Mix and draw current tile line pixel
-            var bitmask = 1 << ((x ^ 7) & 7);
-            var px = this.palshades [
-                ((hibyte & bitmask) ? 2 : 0)
-                | ((lobyte & bitmask) ? 1 : 0)
-            ];
-            this.PutPixel (this.lx, this.ly, px);
-
-            this.lx ++;
-
-            // Update lx with scroll in context
-            x ++;
-            x &= 0xff;
-        }
-
+        // Fin !
         // Advance to the next line
         this.AdvanceLine ();
+    };
 
-        // End
-        // cpu.cycles += 456; // 114 * 4
+    // Check if any stat irq conditions are met
+    this.OnStatChange = function () {
+        // Check for coincidence
+        var whatACoin = this.ly === this.lyc;
+        if (whatACoin)
+            this.stat.SetCoincidence ();
+        else if (this.stat.coincidence)
+            this.stat.ClearCoincidence ();
+
+        // Return condition
+        if (
+            (this.stat.coin_irq && whatACoin)
+            || this.stat.mode2_irq
+            || this.stat.mode0_irq
+        )
+            cpu.iflag.SetLcdStat ();
+    };
+
+    // Advance line and update ly 
+    this.AdvanceLine = function () {
+        this.ly ++;
+
+        // Vblank period ...
+        if (this.vblanking) {
+            if (this.drawing) {
+                cpu.iflag.SetVblank (); // Set vblank
+                this.stat.WriteMode (1); // Mode 1 (vblank)
+
+                // Mode 1 (vblank) irq
+                if (this.stat.mode1_irq)
+                    cpu.iflag.SetLcdStat ();
+
+                this.drawing = false;
+            }
+
+            // If vblank is over, reset ly
+            if (this.ly === 154) {
+                this.ly = 0;
+                this.vblanking = false;
+            }
+        }
+        else
+            this.vblanking = this.ly === gbheight; // Check if vblanking
+
+        mem.ioreg [0x44] = this.ly; // Set LY io reg
     };
 
     // DEBUG SCANLINE - draws tile data
-    this.DebugScanline = function () {
+    /*this.DebugScanline = function () {
         // When vblanking ...
         if (this.ly >= gbheight) {
             if (this.lcdc.lcd_enabled && this.ly === gbheight) {
@@ -279,14 +352,6 @@ const Ppu = function (nes) {
 
         // End
         // cpu.cycles += 456; // 114 * 4
-    };
-
-    // Advance line and update ly 
-    this.AdvanceLine = function () {
-        this.ly ++;
-
-        this.ly = this.ly * (this.ly < 154); // If vblank is over, reset
-        mem.ioreg [0x44] = this.ly; // Set LY io reg
-    };
+    };*/
 
 };

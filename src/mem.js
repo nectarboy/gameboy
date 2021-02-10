@@ -13,10 +13,10 @@ const Mem = function (nes, cpu) {
         this.hram.fill (0);
         this.iereg = 0;
 
-        // Fill unused bits in io registers
-        cpu.writeByte (0xff0f, 0); // IF
-        cpu.writeByte (0xff07, 0); // TAC
-        cpu.writeByte (0xff41, 0); // LCDC STAT
+        // Initialize unused bits in all io registers
+        for (var i = 0; i < mem.ioreg.length; i ++) {
+            cpu.writeByte (0xff00 | i);
+        }
 
         // this.ioreg [0x44] = 144; // (Stub)
 
@@ -102,7 +102,7 @@ const Mem = function (nes, cpu) {
         [0x07]: function (val) {
             cpu.timaenable = (val & (1 << 2)) ? true : false; // Bit 2
 
-            var ii = val & 0b11; // Input clock select
+            var ii = val & 3; // Input clock select
 
             if (ii === 0) {
                 cpu.timarate = cpu.cyclespersec / 1024;
@@ -140,6 +140,8 @@ const Mem = function (nes, cpu) {
                 bits [i] = (val & (1 << i)) ? true : false;
             }
 
+            var lcdWasOn = lcdc.lcd_enabled;
+
             lcdc.bg_priority            = bits [0];
             lcdc.sprite_enabled         = bits [1];
             lcdc.sprite_size            = bits [2];
@@ -149,10 +151,12 @@ const Mem = function (nes, cpu) {
             lcdc.window_tilemap_alt     = bits [6];
             lcdc.lcd_enabled            = bits [7];
 
-            // When the lcd is disabled ...
-            if (!lcdc.lcd_enabled) {
-                nes.ppu.stat.WriteMode (0); // LCDC stat mode is always 0
-                nes.ppu.ClearImg (); // Screen is blank
+            // Handle lcd enable changes
+            if (lcdWasOn !== lcdc.lcd_enabled) {
+                if (lcdc.lcd_enabled)
+                    nes.ppu.OnLcdOn ();
+                else
+                    nes.ppu.OnLcdOff ();
             }
 
             mem.ioreg [0x40] = val;
@@ -162,10 +166,12 @@ const Mem = function (nes, cpu) {
         [0x41]: function (val) {
             var stat = nes.ppu.stat;
 
-            stat.coin_irq   = (val & (1 << 6)) ? true : false; // Bit 6
-            stat.mode2_irq  = (val & (1 << 5)) ? true : false; // Bit 5
-            stat.mode1_irq  = (val & (1 << 4)) ? true : false; // Bit 4
-            stat.mode0_irq  = (val & (1 << 3)) ? true : false; // Bit 3
+            stat.coin_irq   = (val & 0b01000000) ? true : false; // Bit 6
+            stat.mode2_irq  = (val & 0b00100000) ? true : false; // Bit 5
+            stat.mode1_irq  = (val & 0b00010000) ? true : false; // Bit 4
+            stat.mode0_irq  = (val & 0b00001000) ? true : false; // Bit 3
+
+            nes.ppu.OnStatChange ();
 
             // write to 0xff41
             mem.ioreg [0x41] |=
@@ -182,9 +188,9 @@ const Mem = function (nes, cpu) {
             nes.ppu.scrollx = mem.ioreg [0x43] = val;
         },
 
-        // LCY
+        // LY
         [0x44]: function (val) {
-
+            nes.ppu.lyc = mem.ioreg [0x44] = val;
         },
 
         // Pallete shades

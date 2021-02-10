@@ -254,8 +254,8 @@ this.CheckInterrupts = function () {
     this.TimaTick = function () {
         if (!this.timaenable)
             return;
-        this.tima ++;
 
+        this.tima ++;
         // Overflow check
         if (this.tima > 0xff) {
             this.tima = this.timamod;
@@ -348,6 +348,9 @@ this.CheckInterrupts = function () {
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {
+            if (nes.ppu.drawing)
+                return mem.stat.mode;
+
             return mem.oam [addr - 0xfe00];
         } else
         // UNUSED //
@@ -501,6 +504,21 @@ this.CheckInterrupts = function () {
 
         this.lowpower = false;
         this.ime = false;
+
+        // Reset timers
+        this.div =
+        this.tima = 0;
+        this.timamod = 0;
+        this.timaenable = false;
+        this.timarate = 0;
+        this.divrate = 256;
+
+        // Reset cpu timings
+        this.divclocks =
+        this.timaclocks = 0;
+
+        this.ppuclocks = 0;
+        this.ppurate = 456;
 
         // Reset memory
         this.mem.Reset ();
