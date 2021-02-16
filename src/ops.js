@@ -343,7 +343,30 @@ const Ops = function (cpu) {
 
         // DAA - WIP
         DAA () {
-            // ... i still dont know tf this is
+            // I copied all of this so shut up
+            var corr = 0;
+
+            var setCar = false;
+
+            if (flag.car || (!flag.sub && (reg.a & 0xf) > 0x09))
+                corr |= 0x6;
+
+            if (flag.car || (!flag.sub && reg.a > 0x99)) {
+                corr |= 0x60;
+                setCar = true;
+            }
+
+            var res
+                = (reg.a
+                + flag.sub ? -corr : corr)
+                & 0xff;
+            
+            flag.zero = res === 0; 
+            flag.hcar = false;
+            flag.car = setCar;
+
+            reg.a = res;
+
             cpu.cycles += 4;
         },
 
@@ -1665,13 +1688,13 @@ const Ops = function (cpu) {
 
     this.InvOp = function (opcode, pc) {
         cpu.Panic (
-            'INVop\n' + this.GetDebugMsg (opcode, pc)
+            'Crashed; INVOP !\n' + this.GetDebugMsg (opcode, pc)
         );
     };
 
     this.IllOp = function (opcode, pc) {
         cpu.Panic (
-            'ILLOP\n' + this.GetDebugMsg (opcode, pc)
+            'Crashed; ILLOP\n' + this.GetDebugMsg (opcode, pc)
         );
     };
 

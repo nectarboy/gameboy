@@ -8,14 +8,16 @@ const Mem = function (nes, cpu) {
         // Reset all memory pies to 0
         this.vram.fill (0);
         this.wram.fill (0);
+        this.cartram.fill (0);
         this.oam.fill (0);
         this.ioreg.fill (0);
         this.hram.fill (0);
-        this.iereg = 0;
-
+        cpu.ienable.Write (0);
         // Initialize unused bits in all io registers
-        for (var i = 0; i < mem.ioreg.length; i ++) {
-            cpu.writeByte (0xff00 | i);
+        for (var i = 0; i < this.ioreg.length; i ++) {
+            var ioonwrite = this.ioonwrite [i];
+            if (ioonwrite && i !== 0x46) // Don't do a dma pls TwT
+                ioonwrite (0);
         }
 
         // this.ioreg [0x44] = 144; // (Stub)
@@ -154,9 +156,9 @@ const Mem = function (nes, cpu) {
             // Handle lcd enable changes
             if (lcdWasOn !== lcdc.lcd_enabled) {
                 if (lcdc.lcd_enabled)
-                    nes.ppu.OnLcdOn ();
+                    nes.ppu.TurnLcdOn ();
                 else
-                    nes.ppu.OnLcdOff ();
+                    nes.ppu.TurnLcdOff ();
             }
 
             mem.ioreg [0x40] = val;
@@ -164,14 +166,16 @@ const Mem = function (nes, cpu) {
 
         // LCDC status
         [0x41]: function (val) {
-            var stat = nes.ppu.stat;
+            var ppu = nes.ppu;
 
-            stat.coin_irq   = (val & 0b01000000) ? true : false; // Bit 6
-            stat.mode2_irq  = (val & 0b00100000) ? true : false; // Bit 5
-            stat.mode1_irq  = (val & 0b00010000) ? true : false; // Bit 4
-            stat.mode0_irq  = (val & 0b00001000) ? true : false; // Bit 3
+            ppu.stat.coin_irq_on   = (val & 0b01000000) ? true : false; // Bit 6
+            ppu.stat.mode2_irq_on  = (val & 0b00100000) ? true : false; // Bit 5
+            ppu.stat.mode1_irq_on  = (val & 0b00010000) ? true : false; // Bit 4
+            ppu.stat.mode0_irq_on  = (val & 0b00001000) ? true : false; // Bit 3
 
-            nes.ppu.OnStatChange ();
+            // Update signal state
+            ppu.CheckCoincidence ();
+            ppu.UpdateStatSignal ();
 
             // write to 0xff41
             mem.ioreg [0x41] |=
@@ -191,6 +195,21 @@ const Mem = function (nes, cpu) {
         // LY
         [0x44]: function (val) {
             nes.ppu.lyc = mem.ioreg [0x44] = val;
+        },
+
+        // DMA transfer - TODO: add the propert
+        [0x46]: function (val) {
+            var dest = val << 8; // 0xXX00 - 0xXX9F
+
+            for (var i = 0; i < 0xa0; i ++) {
+                // Transfer data to vram
+                var data = cpu.readByte (dest | i);
+                cpu.writeByte (0xfe00 | i, data);
+            }
+
+            mem.ioreg [0x46] = val;
+
+            cpu.cycles += 160; // DMA takes 160 t cycles
         },
 
         // Pallete shades
@@ -326,7 +345,7 @@ const Mem = function (nes, cpu) {
         var ramsize = rom [0x149];
 
         if (ramsize > 0 && ramsize < 5) {
-            this.cartram = Math.floor ((1 << (ramsize * 2 - 1)) / 8);
+            this.maxrambanks = Math.floor ((1 << (ramsize * 2 - 1)) / 8); // ba3ref hal formula araf skot
         }
         else {
             if (ramsize === 0x5)

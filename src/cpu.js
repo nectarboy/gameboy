@@ -285,18 +285,6 @@ this.CheckInterrupts = function () {
         }
     };
 
-    // PPU
-    this.ppuclocks = 0;
-    this.ppurate = 456; // Cycles per scanline
-    this.HandlePpu = function (cycles) {
-        this.ppuclocks += cycles;
-
-        while (this.ppuclocks >= this.ppurate) {
-            nes.ppu.DoScanline ();
-            this.ppuclocks -= this.ppurate;
-        }
-    };
-
     // =============== //   Memory //
 
     this.mem = new Mem (nes, this);
@@ -332,6 +320,10 @@ this.CheckInterrupts = function () {
         }
         // VIDEO //
         if (addr < 0xa000) {
+            var mode = nes.ppu.stat.mode;
+            // Block read if lcd mode is 3
+            if (mode === 3)
+                return mode;
             return mem.vram [addr - 0x8000];
         }
         // WORK //
@@ -348,8 +340,10 @@ this.CheckInterrupts = function () {
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {
-            if (nes.ppu.drawing)
-                return mem.stat.mode;
+            var mode = nes.ppu.stat.mode;
+            // Block read if lcd mode is 2 or 3
+            if (mode > 1)
+                return mode;
 
             return mem.oam [addr - 0xfe00];
         } else
@@ -385,6 +379,10 @@ this.CheckInterrupts = function () {
         }
         // VIDEO //
         if (addr < 0xa000) {
+            var mode = nes.ppu.stat.mode;
+            // Block write if lcd mode is 3
+            if (mode === 3)
+                return val;
             return mem.vram [addr - 0x8000] = val;
         }
         // WORK //
@@ -401,6 +399,10 @@ this.CheckInterrupts = function () {
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {
+            var mode = nes.ppu.stat.mode;
+            // Block write if lcd mode is 2 or 3
+            if (mode > 1)
+                return val;
             return mem.oam [addr - 0xfe00] = val;
         }
         // UNUSED //
@@ -470,9 +472,9 @@ this.CheckInterrupts = function () {
             var cycled = this.cycles - precycles;
             precycles = this.cycles;
 
-            // Handle timing
+            // Handle ppu and timers
+            ppu.HandleScan (cycled);
             this.HandleTimers (cycled);
-            this.HandlePpu (cycled);
 
             cycles -= cycled;
         }
@@ -481,10 +483,10 @@ this.CheckInterrupts = function () {
     };
 
     this.LoopExe = function (extracycles) {
-        extracycles = this.Step (extracycles);
+        var cycled = this.Step (extracycles);
 
         this.currentTimeout = setTimeout (() => {
-            cpu.LoopExe (extracycles); // Continue program loop
+            cpu.LoopExe (cycled); // Continue program loop
         }, this.interval);
     };
 
@@ -500,8 +502,6 @@ this.CheckInterrupts = function () {
         this.flag.hcar =
         this.flag.car = false;
 
-        this.cycles = 0;
-
         this.lowpower = false;
         this.ime = false;
 
@@ -510,15 +510,10 @@ this.CheckInterrupts = function () {
         this.tima = 0;
         this.timamod = 0;
         this.timaenable = false;
-        this.timarate = 0;
-        this.divrate = 256;
 
         // Reset cpu timings
         this.divclocks =
         this.timaclocks = 0;
-
-        this.ppuclocks = 0;
-        this.ppurate = 456;
 
         // Reset memory
         this.mem.Reset ();

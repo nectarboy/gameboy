@@ -28,27 +28,26 @@ const Ppu = function (nes) {
 
         // Flags
         coincidence: false, // Bit 2
-        mode: 0            // Bits 1 - 0
+        mode: 0,            // Bits 1 - 0
+
+        // Flag setting methods
+        SetCoincidence () {
+            this.coincidence = true;
+            mem.ioreg [0x41] |= (1 << 6); // Set bit 6
+        },
+        ClearCoincidence () {
+            this.coincidence = false;
+            mem.ioreg [0x41] &= ~(1 << 6); // Clear bit 6
+        },
+
+        WriteMode (mode) {
+            this.mode = mode;
+
+            // Write mode to bits 1 - 0
+            mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
+            mem.ioreg [0x41] |= mode; // Write mode to last 2 bits
+        }
     };
-
-    // Flag setting methods
-    this.SetCoincidence = function () {
-        this.stat.coincidence = true;
-        mem.ioreg [0x41] |= 0b00000100; // Set bit 6
-    },
-    this.ClearCoincidence = function () {
-        this.stat.coincidence = false;
-        mem.ioreg [0x41] &= ~0b00000100; // Clear bit 6
-    },
-
-    this.WriteMode = function (mode) {
-        this.stat.mode = mode;
-        this.firsttimeinmode = true;
-
-        // Write mode to bits 1 - 0
-        mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
-        mem.ioreg [0x41] |= mode; // Write mode to last 2 bits
-    }
 
     this.palshades = {
         0: 0,
@@ -132,10 +131,9 @@ const Ppu = function (nes) {
     // =============== //   Basic Functions //
 
     this.Reset = function () {
-        // Reset stat signal
-        this.statsignal = false;
-
-        this.ppuclocks = 0;
+        // Reset drawing state
+        this.vblanking = 
+        this.drawing = false;
 
         // Reset scanline positions
         this.lx =
@@ -146,18 +144,16 @@ const Ppu = function (nes) {
         this.scrolly = 0;
 
         // Reset lcdc stat flags
-        this.ClearCoincidence ();
-        this.WriteMode (0);
+        this.stat.coincidence = false;
+        this.stat.mode = 0;
     };
 
     // LCD enable methods
     this.TurnLcdOff = function () {
-        // Reset stat signal
-        this.statsignal = false;
+        this.vblank =
+        this.drawing = false;
 
-        this.ppuclocks = 0;
-
-        this.WriteMode (0); // When LCD disabled, stat mode is 0
+        this.stat.WriteMode (0); // When LCD disabled, stat mode is 0
         this.ClearImg (); // Clear screen on frontend
     };
 
@@ -166,149 +162,105 @@ const Ppu = function (nes) {
         this.ly = 0;
         // Don't forget to check for dos concedenes =)
         this.CheckCoincidence ();
+        //this.CheckCoinIrq ();
         
-        this.WriteMode (2); // When LCD enabled again, mode 2
+        this.stat.WriteMode (2); // When LCD enabled again, mode 2
     };
 
     // =============== //   Scanlines //
-
-    this.ppuclocks = 0;
-    this.firsttimeinmode = false;
-
-    // Stat signal
-    this.statsignal = false;
-
-    // Mode lengths in t-cycles
-    this.oamlength = 80;
-    this.drawlength = 172;
-    this.hblanklength = 204;
-    this.scanlinelength = 456;
-
-    // The almighty scanline handler ...
-
-    this.HandleScan = function (cycled) {
-        // Do nothing if LCD is off
-        if (!this.lcdc.lcd_enabled)
-            return;
-
-        this.ppuclocks += cycled; // Add cycles to total clocks ticked
-
-        var presignal = this.statsignal;
-        var curr_mode = this.stat.mode;
-
-        // ---- MODE 2 ---- //
-        if (curr_mode === 2) {
-
-            if (this.ppuclocks >= this.oamlength) {
-                // Mode 2 is over ...
-                this.WriteMode (3);
-
-                this.ppuclocks -= this.oamlength;
-            }
-
-        }
-        // ---- MODE 3 ---- //
-        else if (curr_mode === 3) {
-
-            if (this.firsttimeinmode) {
-                this.statsignal = this.stat.coincidence; // Reset signal state
-
-                this.firsttimeinmode = false;
-            }
-
-            if (this.ppuclocks >= this.drawlength) {
-                // Mode 3 is over ...
-                this.WriteMode (0);
-
-                this.ppuclocks -= this.drawlength;
-            }
-
-        }
-        // ---- MODE 0 ---- //
-        else if (curr_mode === 0) {
-
-            if (this.firsttimeinmode) {
-                // Finally draw the scanline
-                this.DrawBG (); 
-
-                this.firsttimeinmode = false;
-            }
-
-            if (this.ppuclocks >= this.hblanklength) {
-                this.ly ++;
-
-                this.CheckCoincidence ();
-                mem.ioreg [0x44] = this.ly;
-
-                // Check if should move to vblank period
-                if (this.ly === gbheight) {
-                    cpu.iflag.SetVblank ();
-                    this.WriteMode (1);
-                }
-                // Else, mode 0 is over ...
-                else
-                    this.WriteMode (0); // Reset scanline
-
-                this.ppuclocks -= this.hblanklength;
-            }
-
-        }
-        // ---- MODE 1 ---- //
-        else if (curr_mode === 1) {
-
-            if (this.ppuclocks >= this.scanlinelength) {
-                this.ly ++;
-                // When the frame is over (line hits 153)
-                if (this.ly === 153) {
-                    this.ly = 0;
-                    this.WriteMode (2); // Reset scanline
-                }
-
-                this.CheckCoincidence ();
-                mem.ioreg [0x44] = this.ly;
-
-                this.ppuclocks -= this.scanlinelength;
-            }
-
-        }
-
-        // Did the signal go from hi to low ?
-        this.UpdateStatSignal ();
-        
-    };
-
-    // Coincidence check function
-    this.lyc = 0;
-    this.CheckCoincidence = function () {
-        // Yes !
-        if (this.ly === this.lyc)
-            this.SetCoincidence ();
-        // No !
-        else
-            this.ClearCoincidence ();
-    }
-
-    // Update signal state
-    this.UpdateStatSignal = function () {
-        var presignal = this.statsignal;
-
-        this.statsignal = 
-            this.stat.coincidence
-            || (this.stat.mode2_irq_on && this.mode === 2)
-            || (this.stat.mode0_irq_on && this.mode === 0)
-            || (this.stat.mode1_irq_on && this.mode === 1)
-
-        if (!presignal && this.statsignal)
-            cpu.iflag.SetLcdStat ();
-    };
-
-    // =============== //   Background Drawing //
 
     // Scanline positions
     this.lx = 
     this.ly = 0;
 
+    // LY methods
+    this.WriteLY = function () {
+        this.ly ++;
+    };
+
+    this.AdvanceLY = function () {
+        // Increment LY
+        this.ly ++;
+
+        // The vblank period !
+        if (this.vblanking) {
+            // On the first line of vblank ...
+            if (this.drawing) {
+                cpu.iflag.SetVblank (); // Request Vblank
+
+                // Check to request mode1 irq
+                this.stat.WriteMode (1);
+                if (this.stat.mode1_irq_on)
+                    cpu.iflag.SetLcdStat ();
+
+                this.drawing = false; // Video mem is available once more
+            }
+
+            // If LY hits 154, reset back to 0
+            if (this.ly === 154) {
+                this.ly = 0;
+                this.vblanking = false;
+            }
+        }
+        else
+            this.vblanking = this.ly === gbheight;
+
+        // Check for a coincidence
+        this.CheckCoincidence ();
+        this.CheckCoinIrq ();
+
+        mem.ioreg [0x44] = this.ly;
+    };
+
+    // Scanline function !
+    this.DoScanline = function () {
+        // Do nothing if LCD is off
+        if (!this.lcdc.lcd_enabled)
+            return;
+
+        // When we're actually scanlining
+        if (!this.vblanking) {
+            // On the first line ...
+            if (!this.drawing) {
+                this.stat.WriteMode (0);
+                this.drawing = true;
+            }
+
+            this.DrawBG ();
+            this.CheckModeIrq ();
+        }
+
+        this.AdvanceLY ();
+    };
+
+    // STAT interrupt methods
+    this.lyc = 0;
+
+    this.CheckCoincidence = function () {
+        if (this.ly === this.lyc)
+            this.stat.SetCoincidence ();
+        else if (this.stat.coincidence)
+            this.stat.ClearCoincidence ();
+    };
+
+    this.CheckCoinIrq = function () {
+        if (this.stat.coin_irq_on && this.stat.mode)
+            cpu.iflag.SetLcdStat ();
+    };
+
+    this.CheckModeIrq = function () {
+        if (
+            this.stat.mode0_irq_on || this.stat.mode2_irq_on
+        )
+            cpu.iflag.SetLcdStat ();
+    };
+
+    // =============== //   Background Drawing //
+
     // BG scroll positions
+    this.vblanking = 
+    this.drawing = false;
+
     this.scrollx =
     this.scrolly = 0;
 

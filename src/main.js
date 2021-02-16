@@ -41,7 +41,7 @@ const Gameboy = function () {
     this.Reset = function () {
         this.cpu.Reset ();
         this.ppu.Reset ();
-    }
+    };
 
     this.ReadRomFile = function (file, then) {
         console.log ('loading rom...');
