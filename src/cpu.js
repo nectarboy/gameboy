@@ -552,7 +552,7 @@ this.CheckInterrupts = function () {
         this.pc = 0x0100;
         this.sp = 0xfffe;
 
-        this.bootromAtm = false;
+        this.writeByte (0xff50, 1); // Disable bootrom
 
         // console.log (this.ops.GetLogLine (this.pc));
     };

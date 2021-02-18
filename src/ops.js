@@ -343,12 +343,11 @@ const Ops = function (cpu) {
 
         // DAA - WIP
         DAA () {
-            // I copied all of this so shut up
+            // I copied all of this so shut up bleez
             var corr = 0;
-
             var setCar = false;
 
-            if (flag.car || (!flag.sub && (reg.a & 0xf) > 0x09))
+            if (flag.hcar || (!flag.sub && (reg.a & 0xf) > 0x09))
                 corr |= 0x6;
 
             if (flag.car || (!flag.sub && reg.a > 0x99)) {
@@ -358,7 +357,7 @@ const Ops = function (cpu) {
 
             var res
                 = (reg.a
-                + flag.sub ? -corr : corr)
+                + (flag.sub ? -corr : corr))
                 & 0xff;
             
             flag.zero = res === 0; 

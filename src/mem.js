@@ -7,12 +7,13 @@ const Mem = function (nes, cpu) {
     this.Reset = function () {
         // Reset all memory pies to 0
         this.vram.fill (0);
-        this.wram.fill (0);
+        this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
         this.cartram.fill (0);
         this.oam.fill (0);
         this.ioreg.fill (0);
         this.hram.fill (0);
         cpu.ienable.Write (0);
+        
         // Initialize unused bits in all io registers
         for (var i = 0; i < this.ioreg.length; i ++) {
             var ioonwrite = this.ioonwrite [i];
@@ -178,7 +179,7 @@ const Mem = function (nes, cpu) {
             ppu.UpdateStatSignal ();
 
             // write to 0xff41
-            mem.ioreg [0x41] |=
+            mem.ioreg [0x41] =
                ((val | 0b10000000) // Bit 7 is unused
                & 0b11111000) // Last 3 bits are read only
         },
@@ -194,7 +195,12 @@ const Mem = function (nes, cpu) {
 
         // LY
         [0x44]: function (val) {
-            nes.ppu.lyc = mem.ioreg [0x44] = val;
+            // Read only ...
+        },
+
+        // LYC
+        [0x45]: function (val) {
+            nes.ppu.lyc = mem.ioreg [0x45] = val;
         },
 
         // DMA transfer - TODO: add the propert
@@ -227,11 +233,16 @@ const Mem = function (nes, cpu) {
 
         // Disable bootrom
         [0x50]: function (val) {
-            if (cpu.bootromAtm && val !== 0) {
+            // If unmounted, set to read only !
+            if (!cpu.bootromAtm)
+                return;
+
+            if (val & 1) {
                 cpu.bootromAtm = false;
                 console.log ('bootrom disabled.');
             }
-            mem.ioreg [0x50] = val;
+
+            mem.ioreg [0x50] = val | 0b11111110; // Only 1 bit
         },
     };
 

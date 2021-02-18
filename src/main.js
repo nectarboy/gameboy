@@ -28,12 +28,15 @@ const Gameboy = function () {
 
         // Start all components
         this.cpu.LoopExe (0);
-        this.ppu.RenderLoop ();
+
+        this.ppu.ClearImg ();
+        this.ppu.RenderImg ();
+        //this.ppu.RenderLoop (); // This causes screen tearing but its more flow friendly ?
     };
 
     this.Stop = function () {
         this.cpu.StopExe ();
-        this.ppu.StopRendering ();
+        //this.ppu.StopRendering ();
 
         console.log ('stopped execution.');
     };

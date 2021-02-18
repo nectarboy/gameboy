@@ -18,6 +18,7 @@ html, body {
 
 * {
 	font-family: slb;
+	-webkit-font-smoothing: none;
 }
 
 /* TITLE */
@@ -51,7 +52,7 @@ html, body {
 	padding: 30px 25px 60px 25px;
 
 	border: 1px solid #A55AFF;
-	border-radius: 8px 8px 24px 8px;
+	border-radius: 10px 10px 30px 10px; /* 8 8 24 8 */
 }
 
 /* TOP BOTTOM */

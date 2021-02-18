@@ -32,4 +32,5 @@ seriously i woulda given up loong ago if it weren't for yall <333
 - [The emudev community as a whole](https://www.reddit.com/r/EmuDev/)
 - [The pan-docs fsss](https://discord.gg/dkmJAes)
 - [The RGBDS instruction page :3](https://rgbds.gbdev.io/docs/v0.4.1/gbz80.7)
+- [Optix' GBEDG !](https://hacktix.github.io/GBEDG/)
 - [Izik1's opcode table](https://izik1.github.io/gbops/)

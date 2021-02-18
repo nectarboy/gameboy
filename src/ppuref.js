@@ -33,18 +33,17 @@ const Ppu = function (nes) {
 
     // Flag setting methods
     this.SetCoincidence = function () {
-        this.stat.shouldCoinIrq = this.stat.coin_irq_on;
+        this.stat.coincidence = true;
         mem.ioreg [0x41] |= 0b00000100; // Set bit 6
     },
     this.ClearCoincidence = function () {
-        this.stat.shouldCoinIrq = false;
+        this.stat.coincidence = false;
         mem.ioreg [0x41] &= ~0b00000100; // Clear bit 6
     },
 
     this.WriteMode = function (mode) {
         this.stat.mode = mode;
-
-        this.UpdateStatSignal ();
+        this.firsttimeinmode = true;
 
         // Write mode to bits 1 - 0
         mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
@@ -133,8 +132,10 @@ const Ppu = function (nes) {
     // =============== //   Basic Functions //
 
     this.Reset = function () {
-        this.ppuclocks = 0;
+        // Reset stat signal
         this.statsignal = false;
+
+        this.ppuclocks = 0;
 
         // Reset scanline positions
         this.lx =
@@ -151,8 +152,10 @@ const Ppu = function (nes) {
 
     // LCD enable methods
     this.TurnLcdOff = function () {
-        this.ppuclocks = 0;
+        // Reset stat signal
         this.statsignal = false;
+
+        this.ppuclocks = 0;
 
         this.WriteMode (0); // When LCD disabled, stat mode is 0
         this.ClearImg (); // Clear screen on frontend
@@ -170,7 +173,9 @@ const Ppu = function (nes) {
     // =============== //   Scanlines //
 
     this.ppuclocks = 0;
+    this.firsttimeinmode = false;
 
+    // Stat signal
     this.statsignal = false;
 
     // Mode lengths in t-cycles
@@ -186,73 +191,85 @@ const Ppu = function (nes) {
         if (!this.lcdc.lcd_enabled)
             return;
 
-        this.ppuclocks += cycled;
+        this.ppuclocks += cycled; // Add cycles to total clocks ticked
 
-        var prestat = this.statsignal; // Pre-statsignal
+        var presignal = this.statsignal;
         var curr_mode = this.stat.mode;
 
-        // ---- OAM MODE 2 ---- //
+        // ---- MODE 2 ---- //
         if (curr_mode === 2) {
+
+            if (this.firsttimeinmode) {
+                this.UpdateStatSignal ();
+                
+                this.firsttimeinmode = false;
+            }
 
             if (this.ppuclocks >= this.oamlength) {
                 // Mode 2 is over ...
                 this.WriteMode (3);
+                this.UpdateStatSignal ();
 
                 this.ppuclocks -= this.oamlength;
             }
 
         }
-        // ---- DRAW MODE 3 ---- //
+        // ---- MODE 3 ---- //
         else if (curr_mode === 3) {
-
-            // ... basically we doin nothin much in this mode
 
             if (this.ppuclocks >= this.drawlength) {
                 // Mode 3 is over ...
                 this.WriteMode (0);
-                this.RenderScan (); // Finally render on hblank :D
 
                 this.ppuclocks -= this.drawlength;
             }
 
         }
-        // ---- H-BLANK MODE 0 ---- //
+        // ---- MODE 0 ---- //
         else if (curr_mode === 0) {
 
+            if (this.firsttimeinmode) {
+                // Finally draw the scanline - for now keep it here (cuz of vram blocking)
+                this.DrawBG ();
+                this.UpdateStatSignal ();
+
+                this.firsttimeinmode = false;
+            }
+
             if (this.ppuclocks >= this.hblanklength) {
-                // Advance LY
+                // Update LY
                 this.ly ++;
 
                 this.CheckCoincidence ();
                 mem.ioreg [0x44] = this.ly;
 
-                // Check if enter vblank period ?
+                // Check if should move to vblank period
                 if (this.ly === gbheight) {
-                    cpu.iflag.SetVblank (); // Request vblank interrupt !
-                    this.WriteMode (1);
+                    cpu.iflag.SetVblank ();
 
-                    this.RenderImg (); // This v-syncs but idk if its performant. eh who gaf cuz i dont
+                    this.WriteMode (1);
+                    this.UpdateStatSignal ();
                 }
-                // Mode 0 is over ...
-                else
-                    this.WriteMode (2); // Reset 
+                // Else, mode 0 is over ...
+                else {
+                    this.WriteMode (0); // Reset scanline
+                    this.UpdateStatSignal ();
+                }
 
                 this.ppuclocks -= this.hblanklength;
             }
 
         }
-        // ---- V-BLANK MODE 1 ---- //
+        // ---- MODE 1 ---- //
         else if (curr_mode === 1) {
 
             if (this.ppuclocks >= this.scanlinelength) {
-                // Advance LY
                 this.ly ++;
-
-                // Check if out of vblank period ..
-                if (this.ly === 154) {
+                // When the frame is over (line hits 153)
+                if (this.ly === 153) {
                     this.ly = 0;
 
-                    this.WriteMode (2); // Reset
+                    this.WriteMode (2); // Reset scanline
                 }
 
                 this.CheckCoincidence ();
@@ -262,6 +279,10 @@ const Ppu = function (nes) {
             }
 
         }
+
+        // Did the signal go from hi to low ?
+        // this.UpdateStatSignal ();
+        
     };
 
     // Coincidence check function
@@ -280,10 +301,10 @@ const Ppu = function (nes) {
         var presignal = this.statsignal;
 
         this.statsignal = 
-            this.stat.shouldCoinIrq
-            || (this.stat.mode2_irq_on && this.stat.mode === 2)
-            || (this.stat.mode0_irq_on && this.stat.mode === 0)
-            || (this.stat.mode1_irq_on && this.stat.mode === 1)
+            (this.stat.coin_irq_on && this.stat.coincidence)
+            || (this.stat.mode2_irq_on && this.mode === 2)
+            || (this.stat.mode0_irq_on && this.mode === 0)
+            || (this.stat.mode1_irq_on && this.mode === 1)
 
         if (!presignal && this.statsignal)
             cpu.iflag.SetLcdStat ();
@@ -301,7 +322,7 @@ const Ppu = function (nes) {
 
     this.subty = 0; // Used to decide which row of tile to render
 
-    this.RenderScan = function () {
+    this.DrawBG = function () {
         this.lx = 0;
 
         var x = (this.lx + this.scrollx) & 0xff;
