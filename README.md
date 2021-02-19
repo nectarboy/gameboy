@@ -1,7 +1,7 @@
-# Pollen Boy - my GB emulator ! <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'>
+# <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'> Pollen Boy - my GB emulator !
 
 ## Intro
-Pollen Boy is a GameBoy emulator made in JavaScript.
+Pollen Boy is a Gameboy emulator made in JavaScript.
 It is still a pretty big WIP, but progress is still being made !
 
 If you wanna peek through that code tho, spare a man sum feedback ! ! !
