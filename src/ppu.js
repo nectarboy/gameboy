@@ -43,7 +43,6 @@ const Ppu = function (nes) {
 
     this.WriteMode = function (mode) {
         this.stat.mode = mode;
-
         this.UpdateStatSignal ();
 
         // Write mode to bits 1 - 0
@@ -205,7 +204,7 @@ const Ppu = function (nes) {
         // ---- DRAW MODE 3 ---- //
         else if (curr_mode === 3) {
 
-            // ... basically we doin nothin much in this mode
+            // ... we're just imaginary plotting pixels dodododooo
 
             if (this.ppuclocks >= this.drawlength) {
                 // Mode 3 is over ...
@@ -219,6 +218,8 @@ const Ppu = function (nes) {
         // ---- H-BLANK MODE 0 ---- //
         else if (curr_mode === 0) {
 
+            // We're relaxin here ...
+
             if (this.ppuclocks >= this.hblanklength) {
                 // Advance LY
                 this.ly ++;
@@ -226,16 +227,15 @@ const Ppu = function (nes) {
                 this.CheckCoincidence ();
                 mem.ioreg [0x44] = this.ly;
 
-                // Check if enter vblank period ?
+                // When entering vblank period ...
                 if (this.ly === gbheight) {
-                    cpu.iflag.SetVblank (); // Request vblank interrupt !
-                    this.WriteMode (1);
+                    this.RenderImg (); // Draw picture ! (in v-sync uwu)
+                    cpu.iflag.SetVblank (); // Request vblank irq !
 
-                    this.RenderImg (); // This v-syncs but idk if its performant. eh who gaf cuz i dont
+                    this.WriteMode (1);
                 }
-                // Mode 0 is over ...
                 else
-                    this.WriteMode (2); // Reset 
+                    this.WriteMode (2); // Reset
 
                 this.ppuclocks -= this.hblanklength;
             }
@@ -251,11 +251,15 @@ const Ppu = function (nes) {
                 // Check if out of vblank period ..
                 if (this.ly === 154) {
                     this.ly = 0;
+                    this.CheckCoincidence ();
 
                     this.WriteMode (2); // Reset
                 }
+                else {
+                    this.CheckCoincidence ();
+                    this.UpdateStatSignal ();
+                }
 
-                this.CheckCoincidence ();
                 mem.ioreg [0x44] = this.ly;
 
                 this.ppuclocks -= this.scanlinelength;

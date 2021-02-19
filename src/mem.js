@@ -124,11 +124,11 @@ const Mem = function (nes, cpu) {
         // IF
         [0x0f]: function (val) {
             // Set interrupt flags
-            cpu.iflag.vblank      = (val & 1) ? true : false;
-            cpu.iflag.lcd_stat    = (val & (1 << 1)) ? true : false;
-            cpu.iflag.timer       = (val & (1 << 2)) ? true : false;
-            cpu.iflag.serial      = (val & (1 << 3)) ? true : false;
-            cpu.iflag.joypad      = (val & (1 << 4)) ? true : false;
+            cpu.iflag.vblank      = (val & 0b00000001) ? true : false; // Bit 0
+            cpu.iflag.lcd_stat    = (val & 0b00000010) ? true : false; // Bit 1
+            cpu.iflag.timer       = (val & 0b00000100) ? true : false; // Bit 2
+            cpu.iflag.serial      = (val & 0b00001000) ? true : false; // Bit 3
+            cpu.iflag.joypad      = (val & 0b00010000) ? true : false; // Bit 4
 
             // Write to 0xff0f
             mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
@@ -179,9 +179,8 @@ const Mem = function (nes, cpu) {
             ppu.UpdateStatSignal ();
 
             // write to 0xff41
-            mem.ioreg [0x41] =
-               ((val | 0b10000000) // Bit 7 is unused
-               & 0b11111000) // Last 3 bits are read only
+            mem.ioreg [0x41] &= 0b00000111; // Last 3 bits are RO
+            mem.ioreg [0x41] |= (val & 0b11111000) | 0b10000000; // Top bit dont exist
         },
 
         // BG scroll y
@@ -266,7 +265,7 @@ const Mem = function (nes, cpu) {
         for (var i = 0x134; i < 0x13f; i ++) {
             this.romname += String.fromCharCode (rom [i]);
         }
-        document.title = 'Pollen Boy - ' + this.romname;
+        document.title = 'Pollen Boy: ' + this.romname;
 
         // GBC only mode //
         if (rom [0x143] === 0xc0)

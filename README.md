@@ -1,17 +1,20 @@
-# Pollen Boy - my gameboy emulator !
+# Pollen Boy - my GB emulator ! <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'>
 
 ## Intro
 Pollen Boy is a GameBoy emulator made in JavaScript.
-It is still a heavy WIP, and cannot do much atm, but progress is still being made !
+It is still a pretty big WIP, but progress is still being made !
 
 If you wanna peek through that code tho, spare a man sum feedback ! ! !
 I could be doing something completely wrong n i wouldnt know, so any and all feedback helps :)
 
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
+![titties game](https://github.com/nectarboy/gameboy/blob/main/docs/tetris_demo.png?raw=true 'Block Game™ ig')
+![im no good at basketball but i pass sumtimes ?!?](https://github.com/nectarboy/gameboy/blob/main/docs/blarg_pass.png?raw=true 'ok.')
 
 ## Functionality
 So far here's what Pollen Boy has:
 - Load ROMs
+- Custom Palletes (coming soon :3)
 - Gameboy DMG CPU (WIP ofc)
 - PPU and display (WIP too)
 - CPU Interrupts (WIP fs)
@@ -20,7 +23,9 @@ So far here's what Pollen Boy has:
 
 ## How To Use
 Open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
-(Well u can't rlly ,,, enjoy it but hush)
+[something about settings and stuff here when i add em]
+
+(PS: Pollen Boy does NOT come with roms ! You have to uhh ummm ,,, dump them urself ! ya dump them)
 
 # Special Thanks !!!
 

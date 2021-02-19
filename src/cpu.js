@@ -131,11 +131,11 @@ const Cpu = function (nes) {
 
         Write (val) {
             // Set interrupt enables
-            this.vblank      = (val & 1) ? true : false;
-            this.lcd_stat    = (val & (1 << 1)) ? true : false;
-            this.timer       = (val & (1 << 2)) ? true : false;
-            this.serial      = (val & (1 << 3)) ? true : false;
-            this.joypad      = (val & (1 << 4)) ? true : false;
+            this.vblank      = (val & 0b00000001) ? true : false; // Bit 0
+            this.lcd_stat    = (val & 0b00000010) ? true : false; // Bit 1
+            this.timer       = (val & 0b00000100) ? true : false; // Bit 2
+            this.serial      = (val & 0b00001000) ? true : false; // Bit 3
+            this.joypad      = (val & 0b00010000) ? true : false; // Bit 4
 
             // Write to 0xffff
             return cpu.mem.iereg = val;
@@ -270,9 +270,9 @@ this.CheckInterrupts = function () {
     // Timers
     this.divclocks =
     this.timaclocks = 0;
-    this.HandleTimers = function (cycles) {
-        this.divclocks += cycles;
-        this.timaclocks += cycles;
+    this.HandleTimers = function (cycled) {
+        this.divclocks += cycled;
+        this.timaclocks += cycled;
 
         while (this.divclocks >= this.divrate) {
             this.DivTick ();

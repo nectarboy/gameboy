@@ -421,7 +421,17 @@ const Ops = function (cpu) {
 
         // HALT - WIP
         HALT () {
-            // ...
+            var IF = cpu.readByte (0xff0f) & 0b00011111; // Iflags
+            var IE = cpu.readByte (0xffff) & 0b00011111; // Ienables
+
+            if (IF & IE) {
+                cpu.pc = (cpu.pc + 1) & 0xffff;
+            }
+            else
+                cpu.pc = (cpu.pc - 1) & 0xffff;
+            // Else, we exit the endless, so it seemed, loop of suffering
+
+            cpu.cycles += 4;
         },
 
         // INC
