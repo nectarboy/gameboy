@@ -25,12 +25,14 @@ const Cpu = function (nes) {
 
     // Basic flags
     this.bootromAtm = false;
+
     this.lowpower = false;
+    this.halted = false;
 
     this.ime = false;
 
     this.hasrom = false;
-    this.bootrom_enabled = false;
+    this.bootrom_enabled = true;
 
     // =============== //   Registers and Flags //
 
@@ -270,6 +272,7 @@ this.CheckInterrupts = function () {
     // Timers
     this.divclocks =
     this.timaclocks = 0;
+    
     this.HandleTimers = function (cycled) {
         this.divclocks += cycled;
         this.timaclocks += cycled;
@@ -503,6 +506,8 @@ this.CheckInterrupts = function () {
         this.flag.car = false;
 
         this.lowpower = false;
+        this.halted = false;
+
         this.ime = false;
 
         // Reset timers

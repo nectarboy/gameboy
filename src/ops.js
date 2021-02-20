@@ -421,15 +421,19 @@ const Ops = function (cpu) {
 
         // HALT - WIP
         HALT () {
-            var IF = cpu.readByte (0xff0f) & 0b00011111; // Iflags
-            var IE = cpu.readByte (0xffff) & 0b00011111; // Ienables
+            var IF = cpu.readByte (0xff0f); // Iflags
+            var IE = cpu.readByte (0xffff); // Ienables
 
-            if (IF & IE) {
-                cpu.pc = (cpu.pc + 1) & 0xffff;
+            if ((IF & IE) & 0b00011111) {
+                // Exit hell if an interrupt is valid to be serviced
+                // If IME *is* on, then in the irq servicer, we exit hell :)
+                cpu.pc = (cpu.pc) & 0xffff;
+                cpu.halted = false;
             }
-            else
-                cpu.pc = (cpu.pc - 1) & 0xffff;
-            // Else, we exit the endless, so it seemed, loop of suffering
+            else {
+                cpu.pc = (cpu.pc - 1) & 0xffff; // If we cannot exit hell, stay in hell.
+                cpu.halted = true;
+            }
 
             cpu.cycles += 4;
         },

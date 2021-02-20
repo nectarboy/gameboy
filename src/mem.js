@@ -103,9 +103,8 @@ const Mem = function (nes, cpu) {
         },
         // TAC
         [0x07]: function (val) {
-            cpu.timaenable = (val & (1 << 2)) ? true : false; // Bit 2
-
-            var ii = val & 3; // Input clock select
+            // Input clock select
+            var ii = val & 3;
 
             if (ii === 0) {
                 cpu.timarate = cpu.cyclespersec / 1024;
@@ -116,6 +115,8 @@ const Mem = function (nes, cpu) {
                 // 11   - 256 cycles
                 cpu.timarate = (4 << (ii * 2));
             }
+
+            cpu.timaenable = (val & 0b00000100) ? true : false; // Bit 2
 
             mem.ioreg [0x07] // Set tac ioreg
                 = val | 0b11111000; // Mask out unused bits
