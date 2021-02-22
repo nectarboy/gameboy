@@ -8,7 +8,7 @@ const Ppu = function (nes) {
     // =============== //   Basic Elements //
 
     this.lcdc = {
-        bg_priority: false,
+        bg_enabled: false,
         sprites_enabled: false,
         tall_sprites: false,
         bg_tilemap_alt: false,
@@ -58,17 +58,19 @@ const Ppu = function (nes) {
         3: 0
     };
 
-    this.obj0shades = {
-        0: 0,
-        1: 0,
-        2: 0,
-        3: 0
-    };
-    this.obj1shades = {
-        0: 0,
-        1: 0,
-        2: 0,
-        3: 0
+    this.objshades = {
+        0: {
+            0: 0,
+            1: 0,
+            2: 0,
+            3: 0
+        },
+        1: {
+            0: 0,
+            1: 0,
+            2: 0,
+            3: 0
+        },
     };
 
     // =============== //   Screen Elements //
@@ -194,24 +196,30 @@ const Ppu = function (nes) {
 
     // =============== //   Sprites //
 
-    this.spritePool = new Array (40); // An object pool with 40 blank sprites
-    for (var i = 0; i < this.spritePool.length; i ++) {
-        var blankSprite = {
-            0: 0, // X
-            1: 0, // Y
-            2: 0, // Tile
-            3: 0, // Flags
+    class BlankSprite {
+        constructor () {
+            this [0] =      // X
+            this [1] =      // Y
+            this [2] =      // Tile index
+            this [3] = 0;   // Flags
+
+            this.row = 0;
+        };
+
+        GetFlag (bit) {
+            return (this [3] & (1 << bit)) ? true : false;
         }
-        this.spritePool [i] = blankSprite;
     }
+
+    this.spritePool = new Array (40); // An object pool with 40 blank sprites
+    for (var i = 0; i < this.spritePool.length; i ++)
+        this.spritePool [i] = new BlankSprite ();
 
     this.acceptedSprites = []; // The good boys which fit draw conditions go here :)
     this.maxSpritesScan = 10;
 
     this.SearchOam = function () {
-        // Clear accepted sprites
-        while (this.acceptedSprites.length > 0)
-            this.acceptedSprites.shift ();
+        this.acceptedSprites.length = 0; // Clear buffer
 
         // Search sprite pool
         for (var i = 0; i < this.spritePool.length; i ++) {
@@ -234,6 +242,11 @@ const Ppu = function (nes) {
             }
 
         }
+    };
+
+    this.ResetSpriteRows = function () {
+        for (var i = 0; i < this.spritePool.length; i ++)
+            this.spritePool [i].row = 0; 
     };
 
     // The almighty scanline handler ...
@@ -288,10 +301,11 @@ const Ppu = function (nes) {
 
                 // When entering vblank period ...
                 if (this.ly === gbheight) {
-                    this.RenderImg (); // Draw picture ! (in v-sync uwu)
                     cpu.iflag.SetVblank (); // Request vblank irq !
-
                     this.WriteMode (1);
+
+                    this.RenderImg (); // Draw picture ! (in v-sync uwu)
+                    this.ResetSpriteRows ();
                 }
                 else
                     this.WriteMode (2); // Reset
@@ -362,7 +376,7 @@ const Ppu = function (nes) {
     this.scrollx =
     this.scrolly = 0;
 
-    this.subty = 0; // Used to decide which row of tile to render
+    this.subty = 0; // Used to decide which row of tile to draw
 
     this.RenderScan = function () {
         // Ready up some stuff
@@ -374,42 +388,46 @@ const Ppu = function (nes) {
 
         this.subty = y & 7;
 
-        // Calculate tile data base
+        // Calculate tile data and map bases
         var tiledatabase = 0x9000 - (this.lcdc.signed_addressing * 0x1000);
-
-        // Calculate background map base
         var bgmapbase = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
 
         var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
 
         while (this.lx < gbwidth) {
-            // ----- BACKGROUND ----- //
+            if (this.lcdc.bg_enabled) {
 
-            var mapind = mapindy + (x >> 3); // (x / 8) Background tile map
-            var patind = cpu.readByte (mapind); // Get tile index at map
+                // ----- BACKGROUND ----- //
 
-            // Calculate tile data address
+                var mapind = mapindy + (x >> 3);    // (x / 8) Background tile map
+                var patind = cpu.readByte (mapind); // Get tile index at map
 
-            if (!this.lcdc.signed_addressing)
-                patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
+                // Calculate tile data address
 
-            var addr =
-                tiledatabase + (patind << 4) // (tile index * 16) Each tile is 16 bytes
-                + (this.subty << 1); // (subty * 2) Each line of a tile is 2 bytes
+                if (!this.lcdc.signed_addressing)
+                    patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
 
-            // Get tile line data
-            var lobyte = cpu.readByte (addr ++);
-            var hibyte = cpu.readByte (addr);
+                var addr =
+                    tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
+                    + (this.subty << 1);            // (subty * 2) Each line of a tile is 2 bytes
 
-            // Mix and draw current tile line pixel
-            var bitmask = 1 << ((x ^ 7) & 7);
-            var px = this.palshades [
-                ((hibyte & bitmask) ? 2 : 0)
-                | ((lobyte & bitmask) ? 1 : 0)
-            ];
-            this.PutPixel (this.lx, this.ly, px);
+                // Get tile line data
+                var lobyte = cpu.readByte (addr ++);
+                var hibyte = cpu.readByte (addr);
 
-            // ----- WINDOW ----- //
+                // Mix and draw current tile line pixel
+                var bitmask = 1 << ((x ^ 7) & 7);
+                var px = this.palshades [
+                    ((hibyte & bitmask) ? 2 : 0)
+                    | ((lobyte & bitmask) ? 1 : 0)
+                ];
+                this.PutPixel (this.lx, this.ly, px);
+
+                // ----- WINDOW ----- //
+
+            }
+            else
+                this.PutPixel (this.lx, this.ly, 0);
 
             // Next !
             this.lx ++;
@@ -423,11 +441,57 @@ const Ppu = function (nes) {
             for (var i = 0; i < this.acceptedSprites.length; i ++) {
                 var sprite = this.acceptedSprites [i];
 
-                for (var ii = 0; ii < 8; ii ++)
-                    this.PutPixel (sprite [1] - 8 + ii, sprite [0] - 16 + ii, 3);
+                var realY = sprite [0] - 16;
+                var realX = sprite [1] - 8;
+
+                var subty = (realY + this.ly) & 7; // Used to decide which row of sprite to draw
+
+                // Don't draw offscreen sprites
+                if (realY + sprite.row >= gbheight)
+                    continue;
+
+                // Calculate address
+                var addr =
+                    0x8000 + (sprite [2] << 4)  // (0x8000 + [sprite index * 16])
+                    + (sprite.row << 1);        // + (sub-tile-y * 2)
+
+                // Get tile data
+                var lobyte = cpu.readByte (addr ++);
+                var hibyte = cpu.readByte (addr);
+
+                // Get sprite flags
+                var pallete = sprite.GetFlag (4) ? 1 : 0;   // Bit 4
+                var xflip = sprite.GetFlag (5);             // Bit 5
+
+                // Mix and draw all 8 pixels
+                for (var ii = 0; ii < 8; ii ++) {
+                    // Check for horizontal flip
+                    var bitmask = xflip
+                        ? 1 << (ii & 7)
+                        : 1 << ((ii ^ 7) & 7);
+
+                    // Get pixel data
+                    var nib =
+                        ((hibyte & bitmask) ? 2 : 0)
+                        | ((lobyte & bitmask) ? 1 : 0);
+
+                    if (
+                        !nib                        // 0 pixels are transparent
+                        || realX + ii >= gbwidth    // Don't draw offscreen pixels
+                    )
+                        continue;
+
+                    // Mix and draw !
+                    var px = this.objshades [pallete] [nib];
+                    this.PutPixel (realX + ii, realY + sprite.row, px);
+                }
+                sprite.row ++;
+                // Next sprite pls !
             }
 
         }
+
+        // Fin !
     };
 
 };

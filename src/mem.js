@@ -146,7 +146,7 @@ const Mem = function (nes, cpu) {
 
             var lcdWasOn = lcdc.lcd_enabled;
 
-            lcdc.bg_priority            = bits [0];
+            lcdc.bg_enabled             = bits [0];
             lcdc.sprites_enabled        = bits [1];
             lcdc.tall_sprites           = bits [2];
             lcdc.bg_tilemap_alt         = bits [3];
@@ -170,15 +170,16 @@ const Mem = function (nes, cpu) {
         [0x41]: function (val) {
             var ppu = nes.ppu;
 
-            var preCoinOn = ppu.stat.coin_irq_on;
+            var preStat = mem.ioreg [0x41] & 0b01111000;
 
             ppu.stat.coin_irq_on   = (val & 0b01000000) ? true : false; // Bit 6
             ppu.stat.mode2_irq_on  = (val & 0b00100000) ? true : false; // Bit 5
             ppu.stat.mode1_irq_on  = (val & 0b00010000) ? true : false; // Bit 4
             ppu.stat.mode0_irq_on  = (val & 0b00001000) ? true : false; // Bit 3
 
-            // Update signal state
-            ppu.UpdateStatSignal ();
+            // Update stat signal on a change
+            if (val & 0b01111000 !== preStat)
+                ppu.UpdateStatSignal ();
 
             // write to 0xff41
             mem.ioreg [0x41] &= 0b00000111; // Last 3 bits are RO
@@ -235,23 +236,23 @@ const Mem = function (nes, cpu) {
 
         // Obj 0 - 1 shades
         [0x48]: function (val) {
-            var obj0shades = nes.ppu.obj0shades;
+            var objshades = nes.ppu.objshades [0];
 
             for (var i = 0; i < 4; i ++) {
                 // Get specific crumbs from val
                 // A 'crumb' is a 2 bit number, i coined that :D
-                obj0shades [i] = (val >> (i << 1)) & 3;
+                objshades [i] = (val >> (i << 1)) & 3;
             }
 
             mem.ioreg [0x48] = val;
         },
         [0x49]: function (val) {
-            var obj1shades = nes.ppu.obj1shades;
+            var objshades = nes.ppu.objshades [1];
 
             for (var i = 0; i < 4; i ++) {
                 // Get specific crumbs from val
                 // A 'crumb' is a 2 bit number, i coined that :D
-                obj1shades [i] = (val >> (i << 1)) & 3;
+                objshades [i] = (val >> (i << 1)) & 3;
             }
 
             mem.ioreg [0x49] = val;
