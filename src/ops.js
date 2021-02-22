@@ -424,15 +424,13 @@ const Ops = function (cpu) {
             var IF = cpu.readByte (0xff0f); // Iflags
             var IE = cpu.readByte (0xffff); // Ienables
 
+            // Exit hell if an interrupt is valid to be serviced
             if ((IF & IE) & 0b00011111) {
-                // Exit hell if an interrupt is valid to be serviced
-                // If IME *is* on, then in the irq servicer, we exit hell :)
-                cpu.pc = (cpu.pc) & 0xffff;
-                cpu.halted = false;
+                // ... halt bug here ?? maybe later fuck that shit
             }
+             // If we cannot exit hell, stay in hell.
             else {
-                cpu.pc = (cpu.pc - 1) & 0xffff; // If we cannot exit hell, stay in hell.
-                cpu.halted = true;
+                cpu.pc = (cpu.pc - 1) & 0xffff;
             }
 
             cpu.cycles += 4;

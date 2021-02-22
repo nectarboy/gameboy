@@ -9,8 +9,8 @@ const Ppu = function (nes) {
 
     this.lcdc = {
         bg_priority: false,
-        sprite_enabled: false,
-        sprite_size: false,
+        sprites_enabled: false,
+        tall_sprites: false,
         bg_tilemap_alt: false,
         signed_addressing: false,
         window_enabled: false,
@@ -33,11 +33,11 @@ const Ppu = function (nes) {
 
     // Flag setting methods
     this.SetCoincidence = function () {
-        this.stat.shouldCoinIrq = this.stat.coin_irq_on;
+        this.stat.coincidence = true;
         mem.ioreg [0x41] |= 0b00000100; // Set bit 6
     },
     this.ClearCoincidence = function () {
-        this.stat.shouldCoinIrq = false;
+        this.stat.coincidence = false;
         mem.ioreg [0x41] &= ~0b00000100; // Clear bit 6
     },
 
@@ -50,7 +50,21 @@ const Ppu = function (nes) {
         mem.ioreg [0x41] |= mode; // Write mode to last 2 bits
     }
 
+    // Palletes
     this.palshades = {
+        0: 0,
+        1: 0,
+        2: 0,
+        3: 0
+    };
+
+    this.obj0shades = {
+        0: 0,
+        1: 0,
+        2: 0,
+        3: 0
+    };
+    this.obj1shades = {
         0: 0,
         1: 0,
         2: 0,
@@ -178,6 +192,50 @@ const Ppu = function (nes) {
     this.hblanklength = 204;
     this.scanlinelength = 456;
 
+    // =============== //   Sprites //
+
+    this.spritePool = new Array (40); // An object pool with 40 blank sprites
+    for (var i = 0; i < this.spritePool.length; i ++) {
+        var blankSprite = {
+            0: 0, // X
+            1: 0, // Y
+            2: 0, // Tile
+            3: 0, // Flags
+        }
+        this.spritePool [i] = blankSprite;
+    }
+
+    this.acceptedSprites = []; // The good boys which fit draw conditions go here :)
+    this.maxSpritesScan = 10;
+
+    this.SearchOam = function () {
+        // Clear accepted sprites
+        while (this.acceptedSprites.length > 0)
+            this.acceptedSprites.shift ();
+
+        // Search sprite pool
+        for (var i = 0; i < this.spritePool.length; i ++) {
+
+            var sprite = this.spritePool [i];
+
+            var ly = this.ly + 16;
+            var spriteHeight = this.lcdc.tall_sprites ? 16 : 8;
+
+            if (
+                sprite [1] > 0                      // X > 0
+                && ly >= sprite [0]                 // LY + 16 >= Y
+                && ly < sprite [0] + spriteHeight   // LY + 16 < Y + height
+            )
+            {
+                var accepted = this.acceptedSprites.push (sprite);
+
+                if (accepted === this.maxSpritesScan)
+                    break;
+            }
+
+        }
+    };
+
     // The almighty scanline handler ...
 
     this.HandleScan = function (cycled) {
@@ -196,6 +254,7 @@ const Ppu = function (nes) {
             if (this.ppuclocks >= this.oamlength) {
                 // Mode 2 is over ...
                 this.WriteMode (3);
+                this.SearchOam ();
 
                 this.ppuclocks -= this.oamlength;
             }
@@ -284,7 +343,7 @@ const Ppu = function (nes) {
         var presignal = this.statsignal;
 
         this.statsignal = 
-            this.stat.shouldCoinIrq
+            (this.stat.coin_irq_on && this.stat.coincidence)
             || (this.stat.mode2_irq_on && this.stat.mode === 2)
             || (this.stat.mode0_irq_on && this.stat.mode === 0)
             || (this.stat.mode1_irq_on && this.stat.mode === 1)
@@ -306,7 +365,9 @@ const Ppu = function (nes) {
     this.subty = 0; // Used to decide which row of tile to render
 
     this.RenderScan = function () {
+        // Ready up some stuff
         this.lx = 0;
+        this.spritesThisScan = 0;
 
         var x = (this.lx + this.scrollx) & 0xff;
         var y = (this.ly + this.scrolly) & 0xff;
@@ -322,6 +383,8 @@ const Ppu = function (nes) {
         var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
 
         while (this.lx < gbwidth) {
+            // ----- BACKGROUND ----- //
+
             var mapind = mapindy + (x >> 3); // (x / 8) Background tile map
             var patind = cpu.readByte (mapind); // Get tile index at map
 
@@ -346,10 +409,24 @@ const Ppu = function (nes) {
             ];
             this.PutPixel (this.lx, this.ly, px);
 
-            // Fin !
+            // ----- WINDOW ----- //
+
+            // Next !
             this.lx ++;
             x ++;
             x &= 0xff;
+        }
+
+        // ----- SPRITES ----- //
+        if (this.lcdc.sprites_enabled) {
+
+            for (var i = 0; i < this.acceptedSprites.length; i ++) {
+                var sprite = this.acceptedSprites [i];
+
+                for (var ii = 0; ii < 8; ii ++)
+                    this.PutPixel (sprite [1] - 8 + ii, sprite [0] - 16 + ii, 3);
+            }
+
         }
     };
 

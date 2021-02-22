@@ -32,7 +32,7 @@ const Cpu = function (nes) {
     this.ime = false;
 
     this.hasrom = false;
-    this.bootrom_enabled = true;
+    this.bootrom_enabled = false;
 
     // =============== //   Registers and Flags //
 
@@ -305,7 +305,7 @@ this.CheckInterrupts = function () {
     this.readByte = function (addr) {
         var mem = this.mem;
 
-        addr = addr & 0xffff; // Mask to 16bit int
+        addr &= 0xffff;
 
         // ROM //
         if (this.bootromAtm && addr < 0x100) {
@@ -372,8 +372,8 @@ this.CheckInterrupts = function () {
     this.writeByte = function (addr, val) {
         var mem = this.mem;
 
-        addr = addr & 0xffff; // Mask to 16bit int
-        val = val & 0xff; // Mask to 8bit int
+        addr &= 0xffff;
+        val &= 0xff;
 
         // MBC CONTROL //
         if (addr < 0x8000) {
@@ -406,7 +406,14 @@ this.CheckInterrupts = function () {
             // Block write if lcd mode is 2 or 3
             if (mode > 1)
                 return val;
-            return mem.oam [addr - 0xfe00] = val;
+
+            // Write object properties to sprite pool
+            addr -= 0xfe00;
+
+            nes.ppu.spritePool
+                [addr >> 2] [addr & 3] = val; // (4 bytes per sprite)
+
+            return mem.oam [addr] = val;
         }
         // UNUSED //
         if (addr < 0xff00) {
@@ -486,11 +493,16 @@ this.CheckInterrupts = function () {
     };
 
     this.LoopExe = function (extracycles) {
+        var beforeMs = performance.now ();
+
         var cycled = this.Step (extracycles);
+
+        var afterMs = performance.now ();
+        var msSpent = afterMs - beforeMs; // Time spent on emulation
 
         this.currentTimeout = setTimeout (() => {
             cpu.LoopExe (cycled); // Continue program loop
-        }, this.interval);
+        }, this.interval - msSpent);
     };
 
     this.StopExe = function () {
