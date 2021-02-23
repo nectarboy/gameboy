@@ -411,7 +411,7 @@ this.CheckInterrupts = function () {
             addr -= 0xfe00;
 
             nes.ppu.spritePool
-                [addr >> 2] [addr & 3] = val; // (4 bytes per sprite)
+                [addr >> 2] [addr & 3] (val); // (4 bytes per sprite)
 
             return mem.oam [addr] = val;
         }

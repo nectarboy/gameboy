@@ -78,6 +78,17 @@ const Mem = function (nes, cpu) {
      */
 
     this.ioonwrite = {
+        // Joypad
+        [0x00]: function (val) {
+            nes.joypad.selectbutt = !(val & 0b00100000);
+            nes.joypad.selectdpad = !(val & 0b00010000);
+            
+            nes.joypad.PollJoypad ();
+
+            mem.ioreg [0x00] &= 0x0f; // Pressed bits are RO
+            mem.ioreg [0x00] |= (val & 0xf0) | 0b00000000; // Top bits dont exist
+        },
+
         // Serial Ports - used by test roms for output
         [0x01]: function (val) {
             mem.ioreg [0x01] = val;

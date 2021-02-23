@@ -8,6 +8,7 @@ const Gameboy = function () {
 
     this.cpu = new Cpu (this);
     this.ppu = new Ppu (this);
+    this.joypad = new Joypad (this);
 
     // =============== //   Settings //
 
@@ -28,15 +29,15 @@ const Gameboy = function () {
 
         // Start all components
         this.cpu.LoopExe (0);
-
-        this.ppu.ClearImg ();
-        this.ppu.RenderImg ();
         //this.ppu.RenderLoop (); // This causes screen tearing but its more flow friendly ?
+
+        this.joypad.listener.Start ();
     };
 
     this.Stop = function () {
         this.cpu.StopExe ();
         //this.ppu.StopRendering ();
+        this.joypad.listener.Stop ();
 
         console.log ('stopped execution.');
     };
@@ -44,6 +45,7 @@ const Gameboy = function () {
     this.Reset = function () {
         this.cpu.Reset ();
         this.ppu.Reset ();
+        this.joypad.Reset ();
     };
 
     this.ReadRomFile = function (file, then) {

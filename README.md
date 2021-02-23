@@ -14,12 +14,11 @@ I could be doing something completely wrong n i wouldnt know, so any and all fee
 ## Functionality
 So far here's what Pollen Boy has:
 - Load ROMs
+- Joypad
 - Custom Palletes (coming soon :3)
-- Gameboy DMG CPU (WIP ofc)
-- PPU and display (WIP too)
-- CPU Interrupts (WIP fs)
--
-- ... ITS A WIP OK
+- Gameboy DMG CPU
+- PPU and Display
+- CPU Interrupts
 
 ## How To Use
 Open the webpage, click <kbd>Choose ROM</kbd> and enjoy !

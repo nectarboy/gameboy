@@ -162,6 +162,10 @@ const Ppu = function (nes) {
         // Reset lcdc stat flags
         this.ClearCoincidence ();
         this.WriteMode (0);
+
+        // Clear display
+        this.ClearImg ();
+        this.RenderImg ();
     };
 
     // LCD enable methods
@@ -198,16 +202,32 @@ const Ppu = function (nes) {
 
     class BlankSprite {
         constructor () {
-            this [0] =      // X
-            this [1] =      // Y
-            this [2] =      // Tile index
-            this [3] = 0;   // Flags
+            this.x =
+            this.y = 
+            this.tile = 0;
 
-            this.row = 0;
+            // Flags
+            this.yflip = 
+            this.xflip = false;
+            this.pallete = 0;
+
+            this.row = 0; // Used to decide which row to draw
         };
 
-        GetFlag (bit) {
-            return (this [3] & (1 << bit)) ? true : false;
+        // Byte write methods
+        '0' (val) {
+            this.y = val;
+        }
+        '1' (val) {
+            this.x = val;
+        }
+        '2' (val) {
+            this.tile = val;
+        }
+        '3' (val) {
+            this.yflip = val & (1 << 6) ? true : false;
+            this.xflip = val & (1 << 5) ? true : false;
+            this.pallete = val & (1 << 4) ? 1 : 0;
         }
     }
 
@@ -230,9 +250,9 @@ const Ppu = function (nes) {
             var spriteHeight = this.lcdc.tall_sprites ? 16 : 8;
 
             if (
-                sprite [1] > 0                      // X > 0
-                && ly >= sprite [0]                 // LY + 16 >= Y
-                && ly < sprite [0] + spriteHeight   // LY + 16 < Y + height
+                sprite.x > 0                    // X > 0
+                && ly >= sprite.y               // LY + 16 >= Y
+                && ly < sprite.y + spriteHeight // LY + 16 < Y + height
             )
             {
                 var accepted = this.acceptedSprites.push (sprite);
@@ -306,6 +326,8 @@ const Ppu = function (nes) {
 
                     this.RenderImg (); // Draw picture ! (in v-sync uwu)
                     this.ResetSpriteRows ();
+
+                    nes.joypad.PollJoypad (); // Update the joypad
                 }
                 else
                     this.WriteMode (2); // Reset
@@ -441,32 +463,30 @@ const Ppu = function (nes) {
             for (var i = 0; i < this.acceptedSprites.length; i ++) {
                 var sprite = this.acceptedSprites [i];
 
-                var realY = sprite [0] - 16;
-                var realX = sprite [1] - 8;
-
-                var subty = (realY + this.ly) & 7; // Used to decide which row of sprite to draw
+                var realY = sprite.y - 16 + sprite.row;
+                var realX = sprite.x - 8;
 
                 // Don't draw offscreen sprites
-                if (realY + sprite.row >= gbheight)
+                if (realY >= gbheight)
                     continue;
 
                 // Calculate address
                 var addr =
-                    0x8000 + (sprite [2] << 4)  // (0x8000 + [sprite index * 16])
-                    + (sprite.row << 1);        // + (sub-tile-y * 2)
+                    // (0x8000 + [sprite tile index * 16])
+                    0x8000 + (sprite.tile << 4)
+                    // (sprite row * 2) we account for yflip as well
+                    + (sprite.yflip
+                    ? ((sprite.row ^ 7) & 7) << 1
+                    : sprite.row << 1);
 
                 // Get tile data
                 var lobyte = cpu.readByte (addr ++);
                 var hibyte = cpu.readByte (addr);
 
-                // Get sprite flags
-                var pallete = sprite.GetFlag (4) ? 1 : 0;   // Bit 4
-                var xflip = sprite.GetFlag (5);             // Bit 5
-
                 // Mix and draw all 8 pixels
                 for (var ii = 0; ii < 8; ii ++) {
                     // Check for horizontal flip
-                    var bitmask = xflip
+                    var bitmask = sprite.xflip
                         ? 1 << (ii & 7)
                         : 1 << ((ii ^ 7) & 7);
 
@@ -482,8 +502,8 @@ const Ppu = function (nes) {
                         continue;
 
                     // Mix and draw !
-                    var px = this.objshades [pallete] [nib];
-                    this.PutPixel (realX + ii, realY + sprite.row, px);
+                    var px = this.objshades [sprite.pallete] [nib];
+                    this.PutPixel (realX + ii, realY, px);
                 }
                 sprite.row ++;
                 // Next sprite pls !
