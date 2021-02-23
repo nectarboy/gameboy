@@ -41,6 +41,7 @@ const Joypad = function (nes) {
 		mem.ioreg [0x00] &= 0xf0; // Clear press bits ...
 		var postJoy = mem.ioreg [0x00] |= ~pressed; // ... and write pressed bits !
 
+		// Hi to lo ?
 		if (postJoy < preJoy)
 			nes.cpu.iflag.SetJoypad ();
 	};

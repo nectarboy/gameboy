@@ -7,7 +7,7 @@ const Mem = function (nes, cpu) {
     this.Reset = function () {
         // Reset all memory pies to 0
         this.vram.fill (0);
-        this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
+        //this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
         this.cartram.fill (0);
         this.oam.fill (0);
         this.ioreg.fill (0);
@@ -295,7 +295,7 @@ const Mem = function (nes, cpu) {
         this.GetRomProps (rom);
         this.cartrom = rom;
 
-        cpu.hasrom = true;
+        cpu.hasRom = true;
     };
 
     this.GetRomProps = function (rom) {

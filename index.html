@@ -57,6 +57,7 @@
 
 			<script src='src/main.js'></script>
 
+			<!-- Front-script -->
 			<script>
 				//window.onload = function () {
 
@@ -64,31 +65,55 @@
 					const nanaFin = document.getElementById ('nanafin');
 
 					// Gameboy
-					var gb;
-					function SetupGB () {
-						if (gb)
-							return;
+					var gb = new Gameboy ();
+					gb.AttachCanvas (nanaCanvas);
 
-						gb = new Gameboy ();
-						gb.AttachCanvas (nanaCanvas);
-					}
+					// Palletes
+					this.palletes = {
+						// My own
+						'mono': ['ffffff', 'bbbbbb', '666666', '000000'],
+						'grey': ['A5A5A5', '7F7F7F', '4C4C4C', '333333'],
+						'leafy': ['47E09B', '1CCE31', '559984', '20705E'],
+						'crimson': ['E04545', 'B71745', '771100', '3D0E24'],
+						'hardware': ['75BC64', '639E64', '42603F', '21382A'],
+						'pastel': ['FFA8DC', 'FF60AA', 'CC53AB', 'A0468E'],
 
-					SetupGB (); // For debugging shh
+						// Other ppl's
+						'yychr': ['dec69c', 'a55aff', '942994', '003973'], // w.atwiki.jp/yychr
+						'choco': ['ffe4c2', 'dca456', 'a9604c', '422936'], // lospec.com/palette-list/gb-chocolate
+						'kirby': ['f7bef7', 'e78686', '7733e7', '2c2c96'], // lospec.com/palette-list/kirby-sgb
+						'sheep': ['f9fbf3', 'e4c179', 'bc7967', '292039'], // lospec.com/palette-list/sheepsheep
+						'yoshi': ['e2f3e4', '94e344', '46878f', '332c50'], // lospec.com/palette-list/kirokaze-gameboy
+						'mist': ['c4f0c2', '5ab9a8', '1e606e', '2d1b00'], // lospec.com/palette-list/mist-gb
+						'star bug': ['8be5ff', '608fcf', '7550e8', '622e4c'] // lospec.com/palette-list/wish-gb
+					};
+
+					// Default settings
+					gb.SetFPS (60); // 120 is performant but 60 is smoother
+					gb.bootromEnabled = false;
+					gb.SetPallete (this.palletes ['leafy']);
 
 					// File reading
+					function ReadRomFile (file) {
+				        var fr = new FileReader ();
+
+				        fr.onload = function () {
+				        	var rom = new Uint8Array (fr.result);
+
+				            gb.InsertRom (rom);
+				            gb.Start ();
+				        };
+
+				        fr.readAsArrayBuffer (file);
+					}
+
 					nanaFin.onchange = function (evt) {
 						var file = evt.target.files [0];
 						if (!file)
 							return;
 
-						SetupGB ();
-
 						// Try removing the below to test no rom behavior !
-						gb.ReadRomFile (file, () => {
-							// And then
-							gb.Reset ();
-							gb.Start ();
-						});
+						ReadRomFile (file);
 					};
 
 				//};

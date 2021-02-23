@@ -80,17 +80,19 @@ const Ppu = function (nes) {
 
     this.pallete = {
         0: {
-            r: 0xde, g: 0xc6, b: 0x9c // WHITE
+            r: 0xff, g: 0xff, b: 0xff // WHITE
         },
         1: {
-            r: 0xa5, g: 0x5a, b: 0xff // LITE GRAY
+            r: 0xaa, g: 0xaa, b: 0xaa // LITE GRAY
         },
         2: {
-            r: 0x94, g: 0x29, b: 0x94 // DARK GRAY
+            r: 0x55, g: 0x55, b: 0x55 // DARK GRAY
         },
         3: {
-            r: 0x00, g: 0x39, b: 0x73 // BLACK
-        }
+            r: 0x00, g: 0x00, b: 0x00 // BLACK
+        },
+
+        length: 4
     };
 
     // =============== //   Canvas Drawing //
@@ -476,8 +478,8 @@ const Ppu = function (nes) {
                     0x8000 + (sprite.tile << 4)
                     // (sprite row * 2) we account for yflip as well
                     + (sprite.yflip
-                    ? ((sprite.row ^ 7) & 7) << 1
-                    : sprite.row << 1);
+                        ? ((sprite.row ^ 7) & 7) << 1
+                        : sprite.row << 1);
 
                 // Get tile data
                 var lobyte = cpu.readByte (addr ++);
@@ -495,15 +497,18 @@ const Ppu = function (nes) {
                         ((hibyte & bitmask) ? 2 : 0)
                         | ((lobyte & bitmask) ? 1 : 0);
 
+                    var x = realX + ii;
                     if (
-                        !nib                        // 0 pixels are transparent
-                        || realX + ii >= gbwidth    // Don't draw offscreen pixels
+                        !nib // 0 pixels are transparent
+                        // Don't draw offscreen pixels
+                        || x >= gbwidth
+                        || x < 0
                     )
                         continue;
 
                     // Mix and draw !
                     var px = this.objshades [sprite.pallete] [nib];
-                    this.PutPixel (realX + ii, realY, px);
+                    this.PutPixel (x, realY, px);
                 }
                 sprite.row ++;
                 // Next sprite pls !

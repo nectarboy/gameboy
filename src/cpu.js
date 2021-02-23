@@ -6,33 +6,19 @@ const Cpu = function (nes) {
 
     this.cyclespersec = 4194304; // 4194304
 
-    this.fps = 
     this.cyclesperframe = 
     this.interval = 0;
-
-    this.SetFPS = function (fps) {
-        this.fps = fps;
-        this.cyclesperframe = this.cyclespersec / fps;
-        this.interval = 1000 / fps;
-
-        return fps;
-    };
-
-    this.defaultfps = 120; // Preferably 120 ? 360 or higher ???
-    this.SetFPS (this.defaultfps);
 
     // =============== //   Basic Elements //
 
     // Basic flags
     this.bootromAtm = false;
+    this.hasRom = false;
 
     this.lowpower = false;
     this.halted = false;
 
     this.ime = false;
-
-    this.hasrom = false;
-    this.bootrom_enabled = false;
 
     // =============== //   Registers and Flags //
 
@@ -292,6 +278,10 @@ this.CheckInterrupts = function () {
 
     this.mem = new Mem (nes, this);
 
+    // Thank u to whoever gave me this code
+    // I forgot ur name but may u rest forever
+    // untouched in this shrivelled paradise
+    // U walked so i could run bro gimme a kiss
     /* uint8 read_byte(uint16 addr) {
           if (addr < 0x100 && bootrom_enabled)
             return bootrom[addr];
@@ -312,12 +302,12 @@ this.CheckInterrupts = function () {
             return mem.bootrom [addr];
         }
         if (addr < 0x4000) {
-            if (!this.hasrom)
+            if (!this.hasRom)
                 return 0xff;
             return mem.cartrom [addr];
         }
         if (addr < 0x8000) {
-            if (!this.hasrom)
+            if (!this.hasRom)
                 return 0xff;
             return mem.mbcRead [mem.mbc] (addr);
         }
@@ -533,10 +523,11 @@ this.CheckInterrupts = function () {
         this.timaclocks = 0;
 
         // Reset memory
+        this.bootromAtm = true;
         this.mem.Reset ();
 
         // BOOTROM ENABLED CHANGES - this sentecne makes no sence ik shut up shut up shut up
-        if (this.bootrom_enabled) {
+        if (nes.bootromEnabled) {
             // Reset registers
             this.writeReg16.af (0x0000);
             this.writeReg16.bc (0x0000);
@@ -545,8 +536,6 @@ this.CheckInterrupts = function () {
 
             this.pc = 0x0000;
             this.sp = 0x0000;
-
-            this.bootromAtm = true;
         }
         else {
             this.Bootstrap (); // Manually bootstrap
@@ -569,7 +558,11 @@ this.CheckInterrupts = function () {
         this.pc = 0x0100;
         this.sp = 0xfffe;
 
-        this.writeByte (0xff50, 1); // Disable bootrom
+        // Set ioreg values
+        this.writeByte (0xff40, 0x91); // LCDC
+
+        // Disable bootrom
+        this.writeByte (0xff50, 1);
 
         // console.log (this.ops.GetLogLine (this.pc));
     };
