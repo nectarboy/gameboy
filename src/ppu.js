@@ -95,6 +95,8 @@ const Ppu = function (nes) {
         length: 4
     };
 
+    this.pxMap = new Uint8Array (gbwidth * gbheight); // Used to decide what pixel data was drawn
+
     // =============== //   Canvas Drawing //
 
     this.ctx = null;
@@ -111,15 +113,18 @@ const Ppu = function (nes) {
     };
 
     this.PutPixel = function (x, y, color) {
-        var ind = (y * gbwidth + x) * 4;
+        var ind = (y * gbwidth + x);
+        var pind = ind * 4;
 
         var img = this.img.data;
         var pal = this.pallete [color];
 
-        img [ind] = pal.r;
-        img [ind + 1] = pal.g;
-        img [ind + 2] = pal.b;
-        img [ind + 3] = 0xff; // Full opacity
+        img [pind] = pal.r;
+        img [pind + 1] = pal.g;
+        img [pind + 2] = pal.b;
+        img [pind + 3] = 0xff; // Full opacity
+
+        return ind; // Don't let it go to waste <3
     };
 
     this.RenderImg = function () {
@@ -227,9 +232,10 @@ const Ppu = function (nes) {
             this.tile = val;
         }
         '3' (val) {
-            this.yflip = val & (1 << 6) ? true : false;
-            this.xflip = val & (1 << 5) ? true : false;
-            this.pallete = val & (1 << 4) ? 1 : 0;
+            this.behind     = (val & 0b10000000) ? true : false;
+            this.yflip      = (val & 0b01000000) ? true : false;
+            this.xflip      = (val & 0b00100000) ? true : false;
+            this.pallete    = (val & 0b00010000) ? 1 : 0;
         }
     }
 
@@ -441,17 +447,21 @@ const Ppu = function (nes) {
 
                 // Mix and draw current tile line pixel
                 var bitmask = 1 << ((x ^ 7) & 7);
-                var px = this.palshades [
+                var nib =
                     ((hibyte & bitmask) ? 2 : 0)
-                    | ((lobyte & bitmask) ? 1 : 0)
-                ];
-                this.PutPixel (this.lx, this.ly, px);
+                    | ((lobyte & bitmask) ? 1 : 0);
+
+                var pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
+
+                this.pxMap [pxind] = nib;
 
                 // ----- WINDOW ----- //
 
             }
-            else
-                this.PutPixel (this.lx, this.ly, 0);
+            else {
+                var pxind = this.PutPixel (this.lx, this.ly, 0);
+                this.pxMap [pxind] = 0;
+            }
 
             // Next !
             this.lx ++;
@@ -472,14 +482,27 @@ const Ppu = function (nes) {
                 if (realY >= gbheight)
                     continue;
 
+                // If dubby sprites on set tall tile lsb to 0
+                var tile = sprite.tile;
+                var height;
+
+                if (this.lcdc.tall_sprites) {
+                    tile &= 0xfe;
+                    height = 15;
+                }
+                else
+                    height = 7;
+
                 // Calculate address
                 var addr =
                     // (0x8000 + [sprite tile index * 16])
-                    0x8000 + (sprite.tile << 4)
+                    0x8000 + (tile << 4)
                     // (sprite row * 2) we account for yflip as well
                     + (sprite.yflip
-                        ? ((sprite.row ^ 7) & 7) << 1
+                        ? ((sprite.row ^ height) & height) << 1
                         : sprite.row << 1);
+
+                var pxind_y = realY * gbwidth;
 
                 // Get tile data
                 var lobyte = cpu.readByte (addr ++);
@@ -504,6 +527,10 @@ const Ppu = function (nes) {
                         || x >= gbwidth
                         || x < 0
                     )
+                        continue;
+
+                    var pxind = pxind_y + x;
+                    if (sprite.behind && this.pxMap [pxind] > 0)
                         continue;
 
                     // Mix and draw !

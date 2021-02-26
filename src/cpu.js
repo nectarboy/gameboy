@@ -319,17 +319,19 @@ this.CheckInterrupts = function () {
                 return mode;
             return mem.vram [addr - 0x8000];
         }
-        // WORK //
+        // CART RAM //
         if (addr < 0xc000) {
-            if (!mem.ramenabled)
+            if (!mem.ramenabled || !mem.evenhasram)
                 return 0xff;
-            return mem.cartram [addr - 0xa000]; // Extra ram - WIP
+            return mem.mbcRamRead [mem.mbc] (addr - 0xa000);
         }
+        // WORK RAM //
         if (addr < 0xe000) {
             return mem.wram [addr - 0xc000];
         }
+        // ECHO RAM //
         if (addr < 0xff00) {
-            return mem.wram [addr - 0xe000]; // Echo ram
+            return mem.wram [addr - 0xe000];
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {
@@ -378,17 +380,19 @@ this.CheckInterrupts = function () {
                 return val;
             return mem.vram [addr - 0x8000] = val;
         }
-        // WORK //
+        // CART RAM //
         if (addr < 0xc000) {
-            if (mem.ramenabled)
-                mem.cartram [addr - 0xa000] = val;
+            if (mem.ramenabled && mem.evenhasram)
+                mem.mbcRamWrite [mem.mbc] (addr - 0xa000, val);
             return val;
         }
+        // WORK RAM //
         if (addr < 0xe000) {
             return mem.wram [addr - 0xc000] = val;
         }
+        // ECHO RAM //
         if (addr < 0xfe00) {
-            return mem.wram [addr - 0xe000] = val; // Echo ram
+            return mem.wram [addr - 0xe000] = val;
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {

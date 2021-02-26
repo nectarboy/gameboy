@@ -4,40 +4,6 @@ const Mem = function (nes, cpu) {
 
     // =============== //   Basic Functions //
 
-    this.Reset = function () {
-        // Reset all memory pies to 0
-        this.vram.fill (0);
-        //this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
-        this.cartram.fill (0);
-        this.oam.fill (0);
-        this.ioreg.fill (0);
-        this.hram.fill (0);
-        cpu.ienable.Write (0);
-        
-        // Initialize unused bits in all io registers
-        for (var i = 0; i < this.ioreg.length; i ++) {
-            var ioonwrite = this.ioonwrite [i];
-            if (ioonwrite && i !== 0x46) // Don't do a dma pls TwT
-                ioonwrite (0);
-        }
-
-        // this.ioreg [0x44] = 144; // (Stub)
-
-        // Reset mbc properties
-        this.rombank = 1;
-        this.rambank = 1;
-
-        this.extrarombits = 0;
-
-        this.maxrombanks = 0;
-        this.maxrambanks = 0;
-    };
-
-    this.Error = function (msg) {
-        alert (msg);
-        throw msg;
-    };
-
     // =============== //   Memory Elements //
 
     // Bootrom - 0x0000 - 0x00ff
@@ -45,13 +11,13 @@ const Mem = function (nes, cpu) {
 
     // Cartrom - 0x0000 - 0x8000 (last 0x4000 switchable)
     this.cartrom = new Uint8Array (0x8000);
-    this.romname = '';
+    this.romName = '';
 
     // Video - 0x8000 - 0x9fff
     this.vram = new Uint8Array (0x2000); // 8KB of video ram
 
     // Cartram - 0xa000 - 0xbfff
-    this.cartram = new Uint8Array (0x2000); // 8kb switchable ram found in cart
+    this.cartram = new Uint8Array (0x2000); // variable amt of (maybe bankable) ram found in cart
     // Work ram - 0xc000 - 0xdfff
     this.wram = new Uint8Array (0x2000); // 8KB of ram to work with
 
@@ -72,6 +38,7 @@ const Mem = function (nes, cpu) {
     this.iereg = 0;
 
     // =============== //   IO Registers //
+
     /* TODO
      * rework this so theres an object containing all mapped registers ?
      * make a function that does stuff on write, but its a switch statement 
@@ -269,6 +236,15 @@ const Mem = function (nes, cpu) {
             mem.ioreg [0x49] = val;
         },
 
+        // Window Y - Window X
+        [0x4a]: function (val) {
+            nes.ppu.wy = mem.ioreg [0x4a] = val;
+        },
+        [0x4b]: function (val) {
+            nes.ppu.wx = val - 7; // 7px offset
+            mem.ioreg [0x4b] = val;
+        },
+
         // Disable bootrom
         [0x50]: function (val) {
             // If unmounted, set to read only !
@@ -284,125 +260,142 @@ const Mem = function (nes, cpu) {
         },
     };
 
+    // =============== //   Basic Functions //
+
+    this.Reset = function () {
+        // Reset all memory pies to 0
+        this.vram.fill (0);
+        this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
+        //this.cartram.fill (0);
+        this.oam.fill (0);
+        this.ioreg.fill (0);
+        this.hram.fill (0);
+        cpu.ienable.Write (0);
+        
+        // Initialize unused bits in all io registers
+        for (var i = 0; i < this.ioreg.length; i ++) {
+            var ioonwrite = this.ioonwrite [i];
+            if (ioonwrite && i !== 0x46) // Don't do a dma pls TwT
+                ioonwrite (0);
+        }
+
+        // this.ioreg [0x44] = 144; // (Stub)
+
+        // Reset mbc properties
+        this.rombank = this.defaultRombank;
+        this.rambank = this.defaultRambank;
+
+        this.extrarombits = 0;
+    };
+
+    function Bad (msg) {
+        alert (msg);
+        throw msg;
+    };
+
     // =============== //   Loading and Resetting //
 
     this.LoadRom = function (rom) {
         if (typeof rom !== 'object')
-            return this.Error ('this is not a rom !');
+            return Bad ('this is not a rom !');
 
         rom = new Uint8Array (rom);
 
         this.GetRomProps (rom);
-        this.cartrom = rom;
 
+        // If no bads should have occured, we've loaded a rom !
+        this.cartrom = rom;
         cpu.hasRom = true;
     };
 
     this.GetRomProps = function (rom) {
-        // Rom name //
-        this.romname = '';
+        // ---- ROM NAME ---- //
+        this.romName = '';
+        // Convert bytes to characters
         for (var i = 0x134; i < 0x13f; i ++) {
-            this.romname += String.fromCharCode (rom [i]);
+            this.romName += String.fromCharCode (rom [i]);
         }
-        document.title = 'Pollen Boy: ' + this.romname;
 
-        // GBC only mode //
+        document.title = 'Pollen Boy: ' + this.romName;
+
+        // ---- CGB MODE ---- //
         if (rom [0x143] === 0xc0)
-            this.Error ('rom works only on gameboy color !');
+            Bad ('Gameboy Color roms aint supported :(');
 
-        // Check MBC //
-        switch (rom [0x147]) {
-            // No MBC + ram
-            case 0x8:
-            case 0x9: {
-                this.ramenabled = true;
-            }
-            // No MBC
-            case 0x0: {
-                this.mbc = 0;
-                break;
-            }
+        // ---- ROM SIZE ---- //
+        var romSize = rom [0x148];
 
-            // MBC 1 + ram
-            case 0x3:
-            case 0x2: {
-                this.ramenabled = true;
-            }
-            // MBC 1
-            case 0x1: {
-                this.mbc = 1;
-                break;
-            }
-
-            // MBC 2
-            case 0x6:
-            case 0x5: {
-                this.mbc = 2;
-                break;
-            }
-
-            // MBC 3 + ram
-            case 0x13:
-            case 0x12:
-            case 0x10: {
-                this.ramenabled = true;
-            }
-            // MBC 3
-            case 0x11:
-            case 0xf: {
-                this.mbc = 3;
-                break;
-            }
-
-            // MBC 5 + ram
-            case 0x1e:
-            case 0x1d:
-            case 0x1b:
-            case 0x1a: {
-                this.ramenabled = true;
-            }
-            // MBC 5
-            case 0x1c:
-            case 0x19: {
-                this.mbc = 5;
-                break;
-            }
-
-            default: {
-                this.Error ('unknown rom type !');
-            }
-        }
-
-        // Max rom banks
-        var romsize = rom [0x148];
-
-        if (romsize > 8) {
-            if (romsize === 0x54)
-                this.maxrombanks = 96;
-            else if (this.romsize === 0x53)
-                this.maxrombanks = 80;
-            else if (this.romsize === 0x52)
+        // Dunno if these sizes are real ??
+        if (romSize > 8) {
+            if (romSize === 0x52) {
                 this.maxrombanks = 72;
+            }
+            else if (romSize === 0x53) {
+                this.maxrombanks = 80;
+            }
+            else if (romSize === 0x54) {
+                this.maxrombanks = 96;
+            }
             else
-                this.Error ('invalid rom size !');
+                Bad ('invalid rom type !')
         }
+        // Official sizes B)
         else {
-            this.rombanks = 2 << romsize;
+            this.maxrombanks = 2 << romSize;
         }
 
-        // Max ram banks
-        var ramsize = rom [0x149];
+        // ---- RAM SIZE ---- //
+        var ramSize = rom [0x149];
 
-        if (ramsize > 0 && ramsize < 5) {
-            this.maxrambanks = Math.floor ((1 << (ramsize * 2 - 1)) / 8); // ba3ref hal formula araf skot
+        if (ramSize > 0 && ramSize < 5) {
+            this.maxrambanks = Math.floor ((1 << (ramSize * 2 - 1)) / 8); // idk how i even came up with dis
         }
         else {
-            if (ramsize === 0x5)
+            if (ramSize === 0x5)
                 this.maxrambanks = 8;
-            else if (ramsize === 0x0)
+            else if (ramSize === 0x0)
                 this.maxrambanks = 0;
             else
-                this.Error ('invalid ram size !');
+                Bad ('invalid ram type !');
+        }
+
+        this.cartram = new Uint8Array (this.maxrambanks * 0x2000);
+
+        // ---- MBC TYPE ---- //
+        this.defaultRombank =
+        this.defaultRambank = 0;
+
+        this.evenhasram = false;
+        this.ramenabled = false;
+
+        this.hasrombanks =
+        this.hasrambanks = false;
+
+        switch (rom [0x147]) {
+            // NO MBC
+            case 0x8:
+            case 0x9:
+                this.evenhasram = true;
+                this.ramenabled = true;
+            case 0x0:
+                this.mbc = 0;
+                break;
+
+            // MBC 1
+            case 0x2:
+            case 0x3:
+                this.evenhasram = true;
+
+                if (this.maxrambanks >= 4)
+                    this.hasrambanks = true;
+            case 0x1:
+                this.mbc = 1;
+                this.defaultRombank = 1;
+                this.defaultRambank = 0;
+                break;
+
+            default:
+                Bad ('unsupported rom mbc !');
         }
     };
 
@@ -411,27 +404,35 @@ const Mem = function (nes, cpu) {
     // MBC properties
     this.mbc = 0;
 
-    this.rombank = 1;
-    this.rambank = 1;
+    // Rom banks
+    this.defaultRombank =
+    this.defaultRambank =
+
+    this.rombank
+    this.rambank = 0;
+
+    this.maxrombanks = 
+    this.maxrambanks = 0;
+
+    this.hasrombanks = 
+    this.hasrambanks = false;
 
     this.extrarombits = 0;
 
     this.ramenabled = false;
-
-    this.maxrombanks = 0;
-    this.maxrambanks = 0;
+    this.evenhasram = false;
 
     this.mbcRead = {
         // No MBC
         0: function (addr) {
             return mem.cartrom [addr];
-        },
-        // MBC 1
-        1: function (addr) {
-            return mem.cartrom [
-                (mem.rombank * 0x4000)
-                + (addr & 0x3fff)
-            ];
+        }
+    };
+
+    this.mbcRamRead = {
+        // No MBC
+        0: function (addr) {
+            return mem.cartram [addr];
         }
     };
 
@@ -439,42 +440,88 @@ const Mem = function (nes, cpu) {
         // No MBC
         0: function (addr, val) {
             // u are a stinky poof
-        },
-        // MBC 1
-        1: function (addr, val) {
-            // EXTRA RAM ENABLE //
-            if (addr < 0x2000) {
-                mem.ramenabled = (val & 0xf) === 0x0a; // Value with 0xa enables
-                return val;
-            }
-            // ROM BANK NUMBER //
-            if (addr < 0x4000) {
-                mem.rombank = val & 0b00011111; // Discard first 3 bits
-
-                if (mem.maxrambanks < 4)
-                    mem.rombank |= mem.extrarombits << 5;
-
-                mem.rombank += (
-                    mem.rombank === 0
-                    || mem.rombank === 0x20
-                    || mem.rombank === 0x40 
-                    || mem.rombank === 0x60
-                );
-
-                return val;
-            }
-            // RAM BANK NUMBER or EXTRA ROM BANK BITS //
-            if (addr < 0x6000) {
-                var crumb = val & 3;
-
-                if (mem.maxrombanks >= 64)
-                    mem.extrarombits = crumb;
-                else
-                    mem.rambank = crumb;
-
-                return val;
-            }
         }
+    };
+
+    this.mbcRamWrite = {
+        // No MBC
+        0: function (addr, val) {
+            return mem.cartram [addr] = val;
+        }
+    };
+
+    // =============== //   MBC 1 //
+
+    // Reads
+    this.mbcRead [1] = function (addr) {
+        return mem.cartrom [
+            (mem.rombank * 0x4000)
+            + (addr & 0x3fff)
+        ];
+    };
+
+    this.mbcRamRead [1] = function (addr) {
+        if (mem.maxrambanks >= 4)
+            return mem.cartram [
+                (mem.rambank * 0x2000)
+                + (addr & 0x1fff)
+            ];
+        else
+            return mem.cartram [addr];
+    };
+
+    // Writes
+    this.mbcWrite [1] = function (addr, val) {
+        // EXTRA RAM ENABLE //
+        if (addr < 0x2000) {
+            val &= 0xf;
+            
+            if (val === 0xa)
+                mem.ramenabled = true;
+            else if (val === 0x0)
+                mem.ramenabled = false;
+
+            return val;
+        }
+        // ROM BANK NUMBER //
+        if (addr < 0x4000) {
+            mem.rombank = val & 0b00011111; // Discard last 3 bits
+
+            if (mem.maxrambanks < 4)
+                mem.rombank |= mem.extrarombits << 5;
+
+            mem.rombank += (
+                mem.rombank === 0
+                || mem.rombank === 0x20
+                || mem.rombank === 0x40 
+                || mem.rombank === 0x60
+            );
+
+            return val;
+        }
+        // RAM BANK NUMBER or EXTRA ROM BANK BITS //
+        if (addr < 0x6000) {
+            var crumb = val & 3;
+
+            if (mem.maxrombanks >= 64)
+                mem.extrarombits = crumb;
+
+            mem.rambank = crumb;
+
+            return val;
+        }
+    };
+
+    this.mbcRamWrite [1] = function (addr, val) {
+        if (mem.maxrambanks >= 4)
+            mem.cartram [
+                (mem.rambank * 0x2000)
+                + (addr & 0x1fff)
+            ] = val;
+        else
+            mem.cartram [addr] = val;
+
+        return val;
     };
 
 };
