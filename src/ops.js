@@ -1705,7 +1705,7 @@ const Ops = function (cpu) {
 
     this.IllOp = function (opcode, pc) {
         cpu.Panic (
-            'Crashed; ILLOP\n' + this.GetDebugMsg (opcode, pc)
+            'Crashed; ILLOP !\n' + this.GetDebugMsg (opcode, pc)
         );
     };
 

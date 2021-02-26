@@ -25,10 +25,16 @@
 
 				<div class='gbtop'>
 					<div class='screenwrap'>
-						<canvas id='nanacanvas' width='160' height='144'></canvas>
+
+						<div class='screencontainer'>
+							<canvas id='nanacanvas' class='screen' width='160' height='144'></canvas>
+							<span id='nanastat' class='status_text'></span>
+						</div>
+
 						<div class='center_flex_div'>
 							<img src='img/gb_logo.png' class='gb_logo' draggable='false'>
 						</div>
+
 					</div>
 				</div>
 
@@ -37,12 +43,12 @@
 				<div class='gbbottom'>
 					<!-- File input -->
 					<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom' class='hide'>
-					<label for='nanafin' class='filebutton'>Choose ROM</label>
-
-					<!--<label id='nanapause' class='filebutton'>Pause</label>
+					<label for='nanafin' class='filebutton' style='width:200px;'>Choose ROM</label>
 					<br>
 
-					Step Button
+					<label id='nanapause' class='roundbutton'></label>
+
+					<!--Step Button
 					<label id='nanapause' class='filebutton'>Step</label> -->
 				</div>
 
@@ -59,18 +65,20 @@
 
 			<!-- Front-script -->
 			<script>
-				//window.onload = function () {
+				window.onload = function () {
 
 					const nanaCanvas = document.getElementById ('nanacanvas');
 					const nanaFin = document.getElementById ('nanafin');
+					const nanaStat = document.getElementById ('nanastat');
+					const nanaPause = document.getElementById ('nanapause');
 
 					// Gameboy
-					var gb = new Gameboy ();
+					const gb = new Gameboy ();
 					gb.AttachCanvas (nanaCanvas);
 
 					// Palletes
 					this.palletes = {
-						// I made these (but mfs dont like em ...)
+						// I made these but mfs dont like em ... (rightfully so)
 						'mono': ['ffffff', 'bbbbbb', '666666', '000000'],
 						'grey': ['A5A5A5', '7F7F7F', '4C4C4C', '333333'],
 						'leafy': ['47E09B', '1CCE31', '559984', '20705E'],
@@ -91,7 +99,52 @@
 					// Default settings
 					gb.SetFPS (60); // 120 is performant but 60 is smoother
 					gb.bootromEnabled = false;
-					gb.SetPallete (this.palletes ['choco']);
+					gb.SetPallete (this.palletes ['yychr']);
+
+					// Images
+					const images = {};
+						images.play = new Image ();
+						images.play.src = 'img/button_play.png';
+
+						images.pause = new Image ();
+						images.pause.src = 'img/button_pause.png';
+
+					// Status text
+					var statTimeout = null;
+					var statFadeMs = 1300;
+
+					function SetStatMsg (msg) {
+						nanaStat.innerHTML = msg;
+
+						clearTimeout (statTimeout);
+						statTimeout = setTimeout (ClearStatMsg, statFadeMs);
+					}
+
+					function ClearStatMsg () {
+						nanaStat.innerHTML = '';
+					}
+
+					// Pause / play button
+					function SetPauseImg (img) {
+						nanaPause.style.backgroundImage = 'url(' + img.src + ')';
+					}
+					SetPauseImg (images.pause); // Default
+
+					nanaPause.onclick = function () {
+						if (!gb.cpu.hasRom)
+							return;
+
+						var paused = gb.TogglePause ();
+
+						if (paused) {
+							SetPauseImg (images.play);
+							SetStatMsg ('paused !');
+						}
+						else {
+							SetPauseImg (images.pause);
+							SetStatMsg ('');
+						}
+					};
 
 					// File reading
 					function ReadRomFile (file) {
@@ -102,6 +155,9 @@
 
 				            gb.InsertRom (rom);
 				            gb.Start ();
+
+				            SetPauseImg (images.pause);
+				            //SetStatMsg ('rom loaded :)');
 				        };
 
 				        fr.readAsArrayBuffer (file);
@@ -116,7 +172,7 @@
 						ReadRomFile (file);
 					};
 
-				//};
+				};
 			</script>
 
 		</div>

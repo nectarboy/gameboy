@@ -49,10 +49,10 @@ html, body {
 }
 
 .gbwrap {
-	padding: 30px 25px 60px 25px;
+	padding: 30px 25px 40px 25px;
 
 	border: 1px solid #A55AFF;
-	border-radius: 16px 16px 32px 16px; /* 8 8 24 8 */
+	border-radius: 10px 10px 30px 5px; /* 8 8 24 8 */
 }
 
 /* TOP BOTTOM */
@@ -62,31 +62,27 @@ html, body {
 }
 
 .gbbottom {
+	margin: 0;
+	padding: 0;
+
+	display: inline-block;
 	text-align: center;
 }
 
-.gbin {
-	padding: 12px;
-
-	border: 1px solid #942994;
-	border-radius: 8px;
-}
-
 .gbgap {
-	padding: 35px;
+	padding: 30px;
 }
 
 /* STYLE */
 
 .roundbutton, .filebutton {
 	margin: 0 auto;
-	display: block;
 	position: relative;
+	display: block;
+
+	height: 20px;
 
 	top: 0;
-
-	width: 30%;
-	height: 20px;
 
 	user-select: none;
 
@@ -103,15 +99,23 @@ html, body {
 	border-radius: 2px;
 }
 .roundbutton:active, .filebutton:active {
-	background: #942994;
+	background-color: #942994;
 	border: 1px solid white;
 	color: white;
 	top: 5px;
 }
 
 .roundbutton {
-	width: 30px;
-	height: 30px;
+	display: inline-block;
+
+	/* Image properties */
+	background-image: url();
+	background-position: center;
+	background-size: 24px;
+	background-repeat: no-repeat;
+
+	width: 25px;
+	height: 25px;
 
 	line-height: 30px;
 
@@ -122,22 +126,49 @@ html, body {
 
 .screenwrap {
 	padding: 12px;
-	height: 480px;
+	height: 320px;
 
 	border: 1px solid #942994;
-	border-radius: 16px 16px 32px 16px;
+	border-radius: 8px 8px 24px 8px;
 }
 
-#nanacanvas {
+.screencontainer {
+	margin: 0;
+	padding: 0;
+
+	position: relative;
+}
+
+.screen {
+	position: relative;
+
 	display: inline-block;
-	width: 480px;
+	width: 320px;
 
 	image-rendering: pixelated;
+	-webkit-image-rendering: pixelated;
+	-moz-image-rendering: pixelated;
 
 	background: #none;
 
 	border: 1px solid #A55AFF;
 	border-radius: 2px; /* 8px */
+}
+
+.status_text {
+	position: absolute;
+
+	padding: 8px;
+
+	/*font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;*/
+
+	/* Style */
+	color: #DEC69C;
+	font-size: 16px;
+	text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+
+	bottom: 0;
+	left: 0;
 }
 
 .center_flex_div {
@@ -157,7 +188,7 @@ html, body {
 .gb_logo {
 	position: absolute;
 	display: inline;
-	width: 120px;
+	width: 100px;
 
 	user-select: none;
 }

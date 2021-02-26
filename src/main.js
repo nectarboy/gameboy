@@ -12,6 +12,8 @@ const Gameboy = function () {
 
     // =============== //   Settings //
 
+    this.paused = false;
+
     this.bootromEnabled = false;
     this.pitchShift = 0;
 
@@ -48,6 +50,7 @@ const Gameboy = function () {
     this.Start = function () {
         this.Stop ();
 
+        this.paused = false;
         console.log (
             'started execution.' // Nice lil border :3
             + '\n/---------------/'
@@ -64,7 +67,18 @@ const Gameboy = function () {
         // this.ppu.StopRendering ();
         this.joypad.listener.Stop ();
 
+        this.paused = true;
         console.log ('stopped execution.');
+    };
+
+    // A default pause toggle function
+    this.TogglePause = function () {
+        if (!this.paused)
+            this.Stop ();
+        else
+            this.Start ();
+
+        return this.paused;
     };
 
     this.Reset = function () {

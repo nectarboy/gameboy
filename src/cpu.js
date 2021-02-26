@@ -589,6 +589,11 @@ this.CheckInterrupts = function () {
     };
 
     this.Panic = function (err) {
+        // Program cannot progress any further now
+        this.hasRom = false;
+        this.bootromAtm = false;
+
+        // Stop everything
         nes.Stop ();
 
         alert (err);
