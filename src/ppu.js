@@ -161,7 +161,12 @@ const Ppu = function (nes) {
         // Reset scanline positions
         this.lx =
         this.ly =
-        this.subty =
+
+        this.wx =
+        this.wy = 
+        this.wilc =
+
+        this.sub_ly =
 
         this.scrollx =
         this.scrolly = 0;
@@ -185,8 +190,9 @@ const Ppu = function (nes) {
     };
 
     this.TurnLcdOn = function () {
-        // Reset LY to 0
-        this.ly = 0;
+        // Reset LY (and WILC) to 0
+        this.ly = 
+        this.wilc = 0;
         // Don't forget to check for dos concedenes =)
         this.CheckCoincidence ();
         
@@ -270,6 +276,14 @@ const Ppu = function (nes) {
             }
 
         }
+
+        // Sort by x coordinates
+        this.acceptedSprites.sort ((a, b) => {
+            // Make sure its stable
+            if (b.x === a.x)
+                return -1;
+            return b.x - a.x;
+        });
     };
 
     this.ResetSpriteRows = function () {
@@ -354,6 +368,8 @@ const Ppu = function (nes) {
                 // Check if out of vblank period ..
                 if (this.ly === 154) {
                     this.ly = 0;
+                    this.wilc = 0;
+
                     this.CheckCoincidence ();
 
                     this.WriteMode (2); // Reset
@@ -402,32 +418,76 @@ const Ppu = function (nes) {
     this.lx = 
     this.ly = 0;
 
+    this.wx =
+    this.wy = 
+
+    this.wilc = 0; // Window internal line counter
+
     // BG scroll positions
     this.scrollx =
     this.scrolly = 0;
 
-    this.subty = 0; // Used to decide which row of tile to draw
+    this.sub_ly =  // Used to decide which row of tile to draw
 
     this.RenderScan = function () {
         // Ready up some stuff
         this.lx = 0;
-        this.spritesThisScan = 0;
 
-        var x = (this.lx + this.scrollx) & 0xff;
+        var x = this.scrollx;
         var y = (this.ly + this.scrolly) & 0xff;
 
-        this.subty = y & 7;
+        var wx = 0;
+
+        this.sub_ly = y & 7;
+        var sub_wy = (this.wilc & 7) << 1; // (wilc % 8 * 2) 2 bits per pixel
 
         // Calculate tile data and map bases
-        var tiledatabase = 0x9000 - (this.lcdc.signed_addressing * 0x1000);
-        var bgmapbase = 0x9800 + (this.lcdc.bg_tilemap_alt * 0x400);
+        var tiledatabase = this.lcdc.signed_addressing ? 0x8000 : 0x9000;
+
+        var bgmapbase = this.lcdc.bg_tilemap_alt ? 0x9c00 : 0x9800;
+        var winmapbase = this.lcdc.window_tilemap_alt ? 0x9c00 : 0x9800;
 
         var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
+        var winindy = winmapbase + (this.wilc >> 3) * 32;
+
+        var inWindowRn = this.lcdc.window_enabled && this.ly >= this.wy && this.wx < gbwidth;
 
         while (this.lx < gbwidth) {
-            if (this.lcdc.bg_enabled) {
+            // ----- WINDOW ----- //
+            if (inWindowRn && this.lx >= this.wx) {
 
-                // ----- BACKGROUND ----- //
+                var mapind = winindy + (wx >> 3);    // (x / 8) Background tile map
+                var patind = cpu.readByte (mapind); // Get tile index at map
+
+                // Calculate tile data address
+
+                if (!this.lcdc.signed_addressing)
+                    patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
+
+                var addr =
+                    tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
+                    + (sub_wy);            // (sub_ly * 2) Each line of a tile is 2 bytes
+
+                // Get tile line data
+                var lobyte = cpu.readByte (addr ++);
+                var hibyte = cpu.readByte (addr);
+
+                // Mix and draw current tile line pixel
+                var bitmask = 1 << ((wx ^ 7) & 7);
+                var nib =
+                    ((hibyte & bitmask) ? 2 : 0)
+                    | ((lobyte & bitmask) ? 1 : 0);
+
+                var pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
+
+                this.pxMap [pxind] = nib;
+
+                wx ++;
+
+            }
+
+            // ----- BACKGROUND ----- //
+            else if (this.lcdc.bg_enabled) {
 
                 var mapind = mapindy + (x >> 3);    // (x / 8) Background tile map
                 var patind = cpu.readByte (mapind); // Get tile index at map
@@ -439,7 +499,7 @@ const Ppu = function (nes) {
 
                 var addr =
                     tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
-                    + (this.subty << 1);            // (subty * 2) Each line of a tile is 2 bytes
+                    + (this.sub_ly << 1);            // (sub_ly * 2) Each line of a tile is 2 bytes
 
                 // Get tile line data
                 var lobyte = cpu.readByte (addr ++);
@@ -452,10 +512,10 @@ const Ppu = function (nes) {
                     | ((lobyte & bitmask) ? 1 : 0);
 
                 var pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
-
                 this.pxMap [pxind] = nib;
 
-                // ----- WINDOW ----- //
+                x ++;
+                x &= 0xff;
 
             }
             else {
@@ -465,9 +525,10 @@ const Ppu = function (nes) {
 
             // Next !
             this.lx ++;
-            x ++;
-            x &= 0xff;
         }
+
+        // For every scan we draw a window, inc WILC
+        this.wilc += inWindowRn;
 
         // ----- SPRITES ----- //
         if (this.lcdc.sprites_enabled) {
@@ -520,22 +581,22 @@ const Ppu = function (nes) {
                         ((hibyte & bitmask) ? 2 : 0)
                         | ((lobyte & bitmask) ? 1 : 0);
 
-                    var x = realX + ii;
+                    var sx = realX + ii;
                     if (
                         !nib // 0 pixels are transparent
                         // Don't draw offscreen pixels
-                        || x >= gbwidth
-                        || x < 0
+                        || sx >= gbwidth
+                        || sx < 0
                     )
                         continue;
 
-                    var pxind = pxind_y + x;
+                    var pxind = pxind_y + sx;
                     if (sprite.behind && this.pxMap [pxind] > 0)
                         continue;
 
                     // Mix and draw !
                     var px = this.objshades [sprite.pallete] [nib];
-                    this.PutPixel (x, realY, px);
+                    this.PutPixel (sx, realY, px);
                 }
                 sprite.row ++;
                 // Next sprite pls !

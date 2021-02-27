@@ -297,7 +297,7 @@ const Mem = function (nes, cpu) {
 
     this.LoadRom = function (rom) {
         if (typeof rom !== 'object')
-            return Bad ('this is not a rom !');
+            Bad ('this is not a rom !');
 
         rom = new Uint8Array (rom);
 

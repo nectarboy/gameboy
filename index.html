@@ -65,7 +65,7 @@
 
 			<!-- Front-script -->
 			<script>
-				window.onload = function () {
+				//window.onload = function () {
 
 					const nanaCanvas = document.getElementById ('nanacanvas');
 					const nanaFin = document.getElementById ('nanafin');
@@ -99,7 +99,7 @@
 					// Default settings
 					gb.SetFPS (60); // 120 is performant but 60 is smoother
 					gb.bootromEnabled = false;
-					gb.SetPallete (this.palletes ['yychr']);
+					gb.SetPallete (this.palletes ['choco']);
 
 					// Images
 					const images = {};
@@ -153,7 +153,13 @@
 				        fr.onload = function () {
 				        	var rom = new Uint8Array (fr.result);
 
-				            gb.InsertRom (rom);
+				            try {
+				            	gb.InsertRom (rom);
+				            }
+				            catch (e) {
+				            	SetStatMsg (e);
+				            }
+
 				            gb.Start ();
 
 				            SetPauseImg (images.pause);
@@ -172,7 +178,7 @@
 						ReadRomFile (file);
 					};
 
-				};
+				//};
 			</script>
 
 		</div>
