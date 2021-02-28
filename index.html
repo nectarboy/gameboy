@@ -99,7 +99,9 @@
 					// Default settings
 					gb.SetFPS (60); // 120 is performant but 60 is smoother
 					gb.bootromEnabled = false;
-					gb.SetPallete (this.palletes ['choco']);
+					gb.SetPallete (this.palletes ['kirby']);
+
+					gb.keyboardEnabled = true;
 
 					// Images
 					const images = {};
@@ -151,19 +153,18 @@
 				        var fr = new FileReader ();
 
 				        fr.onload = function () {
-				        	var rom = new Uint8Array (fr.result);
+							var rom = new Uint8Array (fr.result);
 
 				            try {
-				            	gb.InsertRom (rom);
+				            	gb.InsertRom (rom); // This may throw an error
+				            	gb.Start ();
+
+					            SetPauseImg (images.pause);
+					            // SetStatMsg ('rom loaded :)');
 				            }
 				            catch (e) {
 				            	SetStatMsg (e);
 				            }
-
-				            gb.Start ();
-
-				            SetPauseImg (images.pause);
-				            //SetStatMsg ('rom loaded :)');
 				        };
 
 				        fr.readAsArrayBuffer (file);
@@ -174,7 +175,6 @@
 						if (!file)
 							return;
 
-						// Try removing the below to test no rom behavior !
 						ReadRomFile (file);
 					};
 

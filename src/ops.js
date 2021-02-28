@@ -84,7 +84,7 @@ const Ops = function (cpu) {
             cpu.cycles += 4;
         },
         ADC_a_hl () {
-            var byte = cpu.read16 (getReg16.hl ()); // Byte pointed by hl
+            var byte = cpu.readByte (getReg16.hl ()); // Byte pointed by hl
             var val = byte + flag.car; // + carry
 
             var sum = reg.a + val;

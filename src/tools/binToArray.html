@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>BIN TO ARRAY</title>
+	<meta charset='UTF-8'>
+
+	<style>
+		html, body {
+			margin: 10px;
+			overflow: hidden;
+			height: 100%;
+		}
+		* {
+			outline: none;
+		}
+		.innerdiv {
+			text-align: center;
+			display: block;
+			padding: 10px;
+			background: #c8dbdb;
+			border: 1px solid #69ad9d;
+			overflow-y: scroll;
+			max-height: 90%;
+		}
+
+		#fin {
+			display: none;
+		}
+		.button {
+			display: block;
+			position: relative;
+
+			font-size: 30px;
+
+			margin: 0 auto;
+
+			width: 60%;
+			height: 60px;
+
+			background: #92dbd1;
+
+			border: solid 1px #69ad9d;
+			border-radius: 2px;
+		}
+		.button:active {
+			top: 3px;
+			background: #fff;
+		}
+
+		#fout {
+
+			resize: vertical;
+
+			padding: 5px;
+
+			width: 90%;
+			height: 240px;
+
+			min-height: 30px;
+
+			white-space: pre-wrap;       /* css-3 */
+				white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+				white-space: -pre-wrap;      /* Opera 4-6 */
+				white-space: -o-pre-wrap;    /* Opera 7 */
+				word-wrap: break-word;       /* Internet Explorer 5.5+ */
+
+				background: #ffffff;
+
+			border: solid 1px #69ad9d;
+			border-radius: 1px;
+
+		}
+	</style>
+</head>
+<body>
+	<div class=innerdiv>
+		<input type=file id=fin>
+		<label for=fin class=button>Open File</label>
+		<br>
+		<textarea id=fout></textarea>
+	</div>
+
+	<script>
+		var fin = document.getElementById ('fin');
+		var fout = document.getElementById ('fout');
+
+		function arrayToString (arr) {
+			return '[' + arr.toString () + ']';
+		};
+
+		function outputBin (file) {
+			var fr = new FileReader ();
+			fr.onload = function () {
+				fout.innerHTML = arrayToString (new Uint8Array (fr.result));
+			};
+			fr.readAsArrayBuffer (file);
+		};
+
+		fin.onchange = function (e) {
+			var file = e.target.files [0];
+			outputBin (file);
+		};
+	</script>
+</body>
+</html>

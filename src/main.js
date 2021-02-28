@@ -14,6 +14,9 @@ const Gameboy = function () {
 
     this.paused = false;
 
+    this.keyboardEnabled = 
+    this.controllerEnabled = false;
+
     this.bootromEnabled = false;
     this.pitchShift = 0;
 
@@ -59,13 +62,13 @@ const Gameboy = function () {
         // Start components
         this.cpu.LoopExe (0);
         // this.ppu.RenderLoop (); // This causes screen tearing 
-        this.joypad.listener.Start ();
+        this.joypad.keyboardAPI.Start ();
     };
 
     this.Stop = function () {
         this.cpu.StopExe ();
         // this.ppu.StopRendering ();
-        this.joypad.listener.Stop ();
+        this.joypad.keyboardAPI.Stop ();
 
         this.paused = true;
         console.log ('stopped execution.');

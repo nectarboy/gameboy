@@ -288,16 +288,11 @@ const Mem = function (nes, cpu) {
         this.extrarombits = 0;
     };
 
-    function Bad (msg) {
-        alert (msg);
-        throw msg;
-    };
-
     // =============== //   Loading and Resetting //
 
     this.LoadRom = function (rom) {
         if (typeof rom !== 'object')
-            Bad ('this is not a rom !');
+            throw ('this is not a rom !');
 
         rom = new Uint8Array (rom);
 
@@ -320,7 +315,7 @@ const Mem = function (nes, cpu) {
 
         // ---- CGB MODE ---- //
         if (rom [0x143] === 0xc0)
-            Bad ('Gameboy Color roms aint supported :(');
+            throw ('rom is color only :(');
 
         // ---- ROM SIZE ---- //
         var romSize = rom [0x148];
@@ -337,7 +332,7 @@ const Mem = function (nes, cpu) {
                 this.maxrombanks = 96;
             }
             else
-                Bad ('invalid rom type !')
+                throw ('invalid rom !')
         }
         // Official sizes B)
         else {
@@ -356,7 +351,7 @@ const Mem = function (nes, cpu) {
             else if (ramSize === 0x0)
                 this.maxrambanks = 0;
             else
-                Bad ('invalid ram type !');
+                throw ('invalid rom !');
         }
 
         this.cartram = new Uint8Array (this.maxrambanks * 0x2000);
@@ -395,7 +390,7 @@ const Mem = function (nes, cpu) {
                 break;
 
             default:
-                Bad ('unsupported rom mbc !');
+                throw ('unsupported rom !');
         }
     };
 

@@ -80,7 +80,7 @@ const Joypad = function (nes) {
 		select: 'ShiftRight'
 	};
 
-	this.listener = {
+	this.keyboardAPI = {
 		// -- Key state setter -- //
 		SetKeyState (code, val) {
 			var keybinds = joypad.keybinds;
@@ -141,13 +141,16 @@ const Joypad = function (nes) {
 
 		// -- Event listeners -- //
 		Start () {
-			document.addEventListener ('keydown', downlisten);
-			document.addEventListener ('keyup', uplisten);
+			if (!nes.keyboardEnabled)
+				return;
+
+			document.addEventListener ('keydown', keydownlisten);
+			document.addEventListener ('keyup', keyuplisten);
 		},
 
 		Stop () {
-			document.removeEventListener ('keydown', downlisten);
-			document.removeEventListener ('keyup', uplisten);
+			document.removeEventListener ('keydown', keydownlisten);
+			document.removeEventListener ('keyup', keyuplisten);
 
 			joypad.Reset ();
 		}
@@ -155,11 +158,20 @@ const Joypad = function (nes) {
 	};
 
 	// Because event listeners redefine 'this', we use an external function
-	function downlisten (e) {
-		joypad.listener.OnKeyDown (e);
+	function keydownlisten (e) {
+		joypad.keyboardAPI.OnKeyDown (e);
 	}
-	function uplisten (e) {
-		joypad.listener.OnKeyUp (e);
+	function keyuplisten (e) {
+		joypad.keyboardAPI.OnKeyUp (e);
 	}
+
+	// =============== //   Gamepad Events //
+
+	this.gamepads = {};
+
+	this.gamepadListener = {
+		// -- Press state setter -- //
+		
+	};
 	
 };

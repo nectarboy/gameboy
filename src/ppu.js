@@ -583,7 +583,7 @@ const Ppu = function (nes) {
 
                     var sx = realX + ii;
                     if (
-                        !nib // 0 pixels are transparent
+                        !nib // pixels are transparent
                         // Don't draw offscreen pixels
                         || sx >= gbwidth
                         || sx < 0
