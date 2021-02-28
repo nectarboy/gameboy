@@ -53,7 +53,7 @@ const Mem = function (nes, cpu) {
             nes.joypad.PollJoypad ();
 
             mem.ioreg [0x00] &= 0x0f; // Pressed bits are RO
-            mem.ioreg [0x00] |= (val & 0xf0) | 0b00000000; // Top bits dont exist
+            mem.ioreg [0x00] |= (val & 0xf0) | 0b11000000; // Top bits dont exist
         },
 
         // Serial Ports - used by test roms for output
@@ -292,7 +292,7 @@ const Mem = function (nes, cpu) {
 
     this.LoadRom = function (rom) {
         if (typeof rom !== 'object')
-            throw ('this is not a rom !');
+            throw 'this is not a rom !';
 
         rom = new Uint8Array (rom);
 
@@ -315,7 +315,7 @@ const Mem = function (nes, cpu) {
 
         // ---- CGB MODE ---- //
         if (rom [0x143] === 0xc0)
-            throw ('rom is color only :(');
+            throw 'rom is gb color only :(';
 
         // ---- ROM SIZE ---- //
         var romSize = rom [0x148];
@@ -332,7 +332,7 @@ const Mem = function (nes, cpu) {
                 this.maxrombanks = 96;
             }
             else
-                throw ('invalid rom !')
+                throw 'invalid rom !';
         }
         // Official sizes B)
         else {
@@ -351,7 +351,7 @@ const Mem = function (nes, cpu) {
             else if (ramSize === 0x0)
                 this.maxrambanks = 0;
             else
-                throw ('invalid rom !');
+                throw 'invalid rom !';
         }
 
         this.cartram = new Uint8Array (this.maxrambanks * 0x2000);
@@ -390,7 +390,7 @@ const Mem = function (nes, cpu) {
                 break;
 
             default:
-                throw ('unsupported rom !');
+                throw 'unsupported rom mbc !';
         }
     };
 
