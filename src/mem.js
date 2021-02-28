@@ -113,6 +113,11 @@ const Mem = function (nes, cpu) {
             mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
         },
 
+        // NR 50 - i need this so pokemon blue dont freeze
+        [0x24]: function (val) {
+            mem.ioreg [0x24] = val;
+        };
+
         // LCDC
         [0x40]: function (val) {
             var bits = [];
@@ -286,6 +291,7 @@ const Mem = function (nes, cpu) {
         this.rambank = this.defaultRambank;
 
         this.extrarombits = 0;
+        this.rtcreg = 0;
     };
 
     // =============== //   Loading and Resetting //
@@ -363,6 +369,8 @@ const Mem = function (nes, cpu) {
         this.evenhasram = false;
         this.ramenabled = false;
 
+        this.hastimer = false;
+
         this.hasrombanks =
         this.hasrambanks = false;
 
@@ -380,11 +388,23 @@ const Mem = function (nes, cpu) {
             case 0x2:
             case 0x3:
                 this.evenhasram = true;
-
-                if (this.maxrambanks >= 4)
-                    this.hasrambanks = true;
             case 0x1:
                 this.mbc = 1;
+                this.defaultRombank = 1;
+                this.defaultRambank = 0;
+                break;
+
+            // MBC 3
+            case 0xf:
+                this.hastimer = true;
+            case 0x10:
+                this.evenhasram = true;
+                this.hastimer = true;
+            case 0x13:
+            case 0x12:
+                this.evenhasram = true;
+            case 0x11:
+                this.mbc = 3;
                 this.defaultRombank = 1;
                 this.defaultRambank = 0;
                 break;
@@ -400,22 +420,24 @@ const Mem = function (nes, cpu) {
     this.mbc = 0;
 
     // Rom banks
-    this.defaultRombank =
-    this.defaultRambank =
+    this.defaultRombank = 0
+    this.defaultRambank = 0;
 
-    this.rombank
+    this.rombank = 0;
     this.rambank = 0;
+    this.rtcreg = 0;
+    this.ramenabled = false;
 
-    this.maxrombanks = 
+    this.maxrombanks = 0; 
     this.maxrambanks = 0;
 
-    this.hasrombanks = 
+    this.hasrombanks = false;
     this.hasrambanks = false;
 
     this.extrarombits = 0;
 
-    this.ramenabled = false;
     this.evenhasram = false;
+    this.hastimer = false;
 
     this.mbcRead = {
         // No MBC
@@ -469,11 +491,11 @@ const Mem = function (nes, cpu) {
     this.mbcWrite [1] = function (addr, val) {
         // EXTRA RAM ENABLE //
         if (addr < 0x2000) {
-            val &= 0xf;
+            var bank = val & 0xf;
             
-            if (val === 0xa)
+            if (bank === 0xa)
                 mem.ramenabled = true;
-            else if (val === 0x0)
+            else if (bank === 0x0)
                 mem.ramenabled = false;
 
             return val;
@@ -508,6 +530,83 @@ const Mem = function (nes, cpu) {
     };
 
     this.mbcRamWrite [1] = function (addr, val) {
+        if (mem.maxrambanks >= 4)
+            mem.cartram [
+                (mem.rambank * 0x2000)
+                + (addr & 0x1fff)
+            ] = val;
+        else
+            mem.cartram [addr] = val;
+
+        return val;
+    };
+
+    // =============== //   MBC 3 //
+
+    // Reads
+    this.mbcRead [3] = function (addr) {
+        return mem.cartrom [
+            (mem.rombank * 0x4000)
+            + (addr & 0x3fff)
+        ];
+    };
+
+    this.mbcRamRead [3] = function (addr) {
+        if (mem.maxrambanks >= 4)
+            return mem.cartram [
+                (mem.rambank * 0x2000)
+                + (addr & 0x1fff)
+            ];
+        else
+            return mem.cartram [addr];
+    };
+
+    // Writes
+    this.mbcWrite [3] = function (addr, val) {
+        // EXTRA RAM ENABLE //
+        if (addr < 0x2000) {
+            var bank = val & 0x0f;
+
+            if (val === 0xa)
+                mem.ramenabled = true;
+            else if (val === 0)
+                mem.ramenabled = false;
+
+            return val;
+        }
+
+        // ROM BANK NUMBER //
+        if (addr < 0x4000) {
+            if (val > 0) {
+                mem.rombank = val & 0b01111111; // Last bit is discarded
+            }
+            // We can't go to bank 0 bro !
+            else
+                mem.rombank = 1;
+
+            return val;
+        }
+
+        // RAM BANK NUMBER or RTC REG SELECT //
+        if (addr < 0x6000) {
+            if (val < 0x4)
+                mem.rambank = val;
+            else if (val > 0x7 && val < 0xd)
+                mem.rtcreg = val;
+
+            return val;
+        }
+
+        // LATCH DATA CLOCK //
+        if (addr < 0x8000) {
+
+
+            return val;
+        }
+
+    };
+
+    this.mbcRamWrite [3] = function (addr, val) {
         if (mem.maxrambanks >= 4)
             mem.cartram [
                 (mem.rambank * 0x2000)

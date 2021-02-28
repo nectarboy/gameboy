@@ -459,6 +459,9 @@ this.CheckInterrupts = function () {
 
     this.currentTimeout = null;
 
+    this.msBefore =
+    this.msAfter = 0;
+
     this.Step = function (extracycles) {
         var ppu = nes.ppu;
 
@@ -487,12 +490,12 @@ this.CheckInterrupts = function () {
     };
 
     this.LoopExe = function (extracycles) {
-        var beforeMs = performance.now ();
+        this.msBefore = performance.now ();
 
         var cycled = this.Step (extracycles);
 
-        var afterMs = performance.now ();
-        var msSpent = afterMs - beforeMs; // Time spent on emulation
+        this.msAfter = performance.now ();
+        var msSpent = this.msAfter - this.msBefore; // Time spent on emulation
 
         this.currentTimeout = setTimeout (() => {
             cpu.LoopExe (cycled); // Continue program loop
@@ -502,6 +505,10 @@ this.CheckInterrupts = function () {
     this.StopExe = function () {
         clearTimeout (this.currentTimeout);
     };
+
+    /*setInterval (() => {
+        console.log (1000 / (this.msAfter - this.msBefore));
+    }, 1000);*/
 
     // Reset
     this.Reset = function () {
