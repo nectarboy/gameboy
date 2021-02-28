@@ -31,7 +31,7 @@ Open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
 (PS: Pollen Boy does NOT come with roms ! You have to uhh ummm ,,, dump them urself ! ya dump them)
 
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
-![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blarg/pass.png?raw=true 'ok.')
+![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
 
 # Special Thanks !!!
 
