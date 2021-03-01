@@ -116,7 +116,7 @@ const Mem = function (nes, cpu) {
         // NR 50 - i need this so pokemon blue dont freeze
         [0x24]: function (val) {
             mem.ioreg [0x24] = val;
-        };
+        },
 
         // LCDC
         [0x40]: function (val) {
@@ -366,18 +366,20 @@ const Mem = function (nes, cpu) {
         this.defaultRombank =
         this.defaultRambank = 0;
 
-        this.evenhasram = false;
         this.ramenabled = false;
 
+        this.evenhasram = false;
         this.hastimer = false;
+        this.hasbatterysave = false;
 
         this.hasrombanks =
         this.hasrambanks = false;
 
         switch (rom [0x147]) {
             // NO MBC
-            case 0x8:
             case 0x9:
+                this.hasbatterysave = true;
+            case 0x8:
                 this.evenhasram = true;
                 this.ramenabled = true;
             case 0x0:
@@ -385,8 +387,9 @@ const Mem = function (nes, cpu) {
                 break;
 
             // MBC 1
-            case 0x2:
             case 0x3:
+                this.hasbatterysave = true;
+            case 0x2:
                 this.evenhasram = true;
             case 0x1:
                 this.mbc = 1;
@@ -394,13 +397,20 @@ const Mem = function (nes, cpu) {
                 this.defaultRambank = 0;
                 break;
 
-            // MBC 3
-            case 0xf:
-                this.hastimer = true;
+            // MBC 3 (with timer)
             case 0x10:
                 this.evenhasram = true;
+            case 0xf:
                 this.hastimer = true;
+
+                this.mbc = 3;
+                this.defaultRombank = 1;
+                this.defaultRambank = 0;
+                break;
+
+            // MBC 3 (no timer)
             case 0x13:
+                this.hasbatterysave = true;
             case 0x12:
                 this.evenhasram = true;
             case 0x11:
@@ -414,6 +424,30 @@ const Mem = function (nes, cpu) {
         }
     };
 
+    // Loading save data
+    this.GetSramArray = function () {
+        if (!this.evenhasram)
+            throw 'no ram available !';
+        if (!this.hasbatterysave)
+            throw 'ram is not save data !';
+
+        // Export save data
+        var data = [];
+        for (var i = 0; i < this.cartram.length; i ++)
+            data [i] = this.cartram [i];
+
+        return data;
+    };
+
+    this.LoadSram = function (data) {
+        if (!this.evenhasram || !this.hasbatterysave)
+            throw 'cannot load save !';
+
+        var length = Math.min (data.length, this.cartram.length);
+        for (var i = 0; i < data.length; i ++)
+            this.cartram [i] = data [i];
+    };
+ 
     // =============== //   MBC Controllers //
 
     // MBC properties
@@ -426,6 +460,9 @@ const Mem = function (nes, cpu) {
     this.rombank = 0;
     this.rambank = 0;
     this.rtcreg = 0;
+    this.extrarombits = 0;
+
+    // Other properties
     this.ramenabled = false;
 
     this.maxrombanks = 0; 
@@ -434,9 +471,9 @@ const Mem = function (nes, cpu) {
     this.hasrombanks = false;
     this.hasrambanks = false;
 
-    this.extrarombits = 0;
-
+    // Stuff that comes with the cartridge
     this.evenhasram = false;
+    this.hasbatterysave = false;
     this.hastimer = false;
 
     this.mbcRead = {

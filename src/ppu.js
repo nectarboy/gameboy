@@ -536,11 +536,13 @@ const Ppu = function (nes) {
             for (var i = 0; i < this.acceptedSprites.length; i ++) {
                 var sprite = this.acceptedSprites [i];
 
-                var realY = sprite.y - 16 + sprite.row;
+                var row = sprite.row ++;
+
+                var realY = sprite.y - 16 + row;
                 var realX = sprite.x - 8;
 
                 // Don't draw offscreen sprites
-                if (realY >= gbheight)
+                if (realY >= gbheight || realY < 0)
                     continue;
 
                 // If dubby sprites on set tall tile lsb to 0
@@ -560,8 +562,8 @@ const Ppu = function (nes) {
                     0x8000 + (tile << 4)
                     // (sprite row * 2) we account for yflip as well
                     + (sprite.yflip
-                        ? ((sprite.row ^ height) & height) << 1
-                        : sprite.row << 1);
+                        ? ((row ^ height) & height) << 1
+                        : row << 1);
 
                 var pxind_y = realY * gbwidth;
 
@@ -587,18 +589,15 @@ const Ppu = function (nes) {
                         // Don't draw offscreen pixels
                         || sx >= gbwidth
                         || sx < 0
+                        // BG priority thingy
+                        || (sprite.behind && this.pxMap [pxind_y + sx] > 0)
                     )
-                        continue;
-
-                    var pxind = pxind_y + sx;
-                    if (sprite.behind && this.pxMap [pxind] > 0)
                         continue;
 
                     // Mix and draw !
                     var px = this.objshades [sprite.pallete] [nib];
                     this.PutPixel (sx, realY, px);
                 }
-                sprite.row ++;
                 // Next sprite pls !
             }
 

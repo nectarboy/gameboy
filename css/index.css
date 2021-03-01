@@ -51,6 +51,8 @@ html, body {
 .gbwrap {
 	padding: 30px 25px 40px 25px;
 
+	user-select: none;
+
 	border: 1px solid #A55AFF;
 	border-radius: 10px 10px 30px 5px; /* 8 8 24 8 */
 }
@@ -73,9 +75,9 @@ html, body {
 	padding: 30px;
 }
 
-/* STYLE */
+/* BUTTONS */
 
-.roundbutton, .filebutton {
+.roundbutton, .filebutton, .smallbutton {
 	margin: 0 auto;
 	position: relative;
 	display: block;
@@ -98,7 +100,7 @@ html, body {
 	border: 1px solid #A55AFF;
 	border-radius: 2px;
 }
-.roundbutton:active, .filebutton:active {
+.roundbutton:active, .filebutton:active, .smallbutton:active {
 	background-color: #942994;
 	border: 1px solid white;
 	color: white;
@@ -120,6 +122,17 @@ html, body {
 	line-height: 30px;
 
 	border-radius: 100%;
+}
+
+.smallbutton {
+	display: inline-block;
+
+	width: 60px;
+	height: 15px;
+
+	font-size: 12px;
+
+	line-height: 15px;
 }
 
 /* GAMEBOY */

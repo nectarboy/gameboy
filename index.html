@@ -20,7 +20,7 @@
 
 		<div class='outerwrap'>
 
-			<!-- GameBoy div -->
+			<!----- GameBoy div ----->
 			<div class='gbwrap'> 
 
 				<div class='gbtop'>
@@ -47,14 +47,15 @@
 					<br>
 
 					<label id='nanapause' class='roundbutton'></label>
-
+					<label id='nanareset' class='roundbutton'></label>
+					
 					<!--Step Button
 					<label id='nanapause' class='filebutton'>Step</label> -->
 				</div>
 
 			</div>
 
-			<!-- Scripts -->
+			<!----- Scripts ----->
 			<script src='src/cpu.js'></script>
 			<script src='src/ops.js'></script>
 			<script src='src/mem.js'></script>
@@ -63,14 +64,20 @@
 
 			<script src='src/main.js'></script>
 
-			<!-- Front-script -->
+			<!---- Front-script ----->
+			<script src='filesaver.js'></script>
 			<script>
 				//window.onload = function () {
 
 					const nanaCanvas = document.getElementById ('nanacanvas');
-					const nanaFin = document.getElementById ('nanafin');
 					const nanaStat = document.getElementById ('nanastat');
+					const nanaFin = document.getElementById ('nanafin');
 					const nanaPause = document.getElementById ('nanapause');
+					const nanaReset = document.getElementById ('nanareset');
+
+					function SetButtonImg (button, img) {
+						button.style.backgroundImage = 'url(' + img.src + ')';
+					}
 
 					// Gameboy
 					const gb = new Gameboy ();
@@ -111,6 +118,9 @@
 						images.pause = new Image ();
 						images.pause.src = 'img/button_pause.png';
 
+						images.reset = new Image ();
+						images.reset.src = 'img/button_reset.png';
+
 					// Status text
 					var statTimeout = null;
 					var statFadeMs = 1300;
@@ -127,10 +137,7 @@
 					}
 
 					// Pause / play button
-					function SetPauseImg (img) {
-						nanaPause.style.backgroundImage = 'url(' + img.src + ')';
-					}
-					SetPauseImg (images.pause); // Default
+					SetButtonImg (nanaPause, images.pause); // Default
 
 					nanaPause.onclick = function () {
 						if (!gb.cpu.hasRom)
@@ -139,13 +146,24 @@
 						var paused = gb.TogglePause ();
 
 						if (paused) {
-							SetPauseImg (images.play);
+							SetButtonImg (nanaPause, images.play);
 							SetStatMsg ('paused !');
 						}
 						else {
-							SetPauseImg (images.pause);
+							SetButtonImg (nanaPause, images.pause);
 							SetStatMsg ('');
 						}
+					};
+
+					// Reset button
+					SetButtonImg (nanaReset, images.reset);
+
+					nanaReset.onclick = function () {
+						if (!confirm ('are you sure you wanna reset ?'))
+							return;
+
+						gb.Reset ();
+						SetStatMsg ('reset !');
 					};
 
 					// File reading
@@ -159,7 +177,7 @@
 				            	gb.InsertRom (rom); // This may throw an error
 				            	gb.Start ();
 
-					            SetPauseImg (images.pause);
+					            SetButtonImg (nanaPause, images.pause);
 					            // SetStatMsg ('rom loaded :)');
 				            }
 				            catch (e) {
@@ -193,6 +211,7 @@
 			<a href='https://github.com/nectarboy/gameboy' class='hidehref'><p class='footsrc'>Source</p></a>
 			<!-- Font: https://www.fontspace.com/super-legend-boy-font-f34010 -->
 		</div>
+		<br>
 
 	</body>
 

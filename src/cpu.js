@@ -506,9 +506,9 @@ this.CheckInterrupts = function () {
         clearTimeout (this.currentTimeout);
     };
 
-    /*setInterval (() => {
-        console.log (1000 / (this.msAfter - this.msBefore));
-    }, 1000);*/
+    this.GetMaxFps = function () {
+        return 1000 / (this.msAfter - this.msBefore);
+    };
 
     // Reset
     this.Reset = function () {
@@ -597,6 +597,8 @@ this.CheckInterrupts = function () {
 
     this.Panic = function (err) {
         // Program cannot progress any further now
+        // TODO: make a seperate 'crashed' bool
+        // cuz this dont work with Reset ()
         this.hasRom = false;
         this.bootromAtm = false;
 
