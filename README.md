@@ -1,10 +1,10 @@
 # <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'> Pollen Boy - my GB emulator !
 
 ## Intro
-Pollen Boy is a Gameboy emulator made in JavaScript.
-It is still a WIP, but progress is slowly being made !
+Pollen Boy is a Gameboy emulator made in JS. You can [try it online here !](https://nectarboy.github.io/gameboy)
+It is still a WIP, but progress is being made :)
 
-If you wanna peek through that code tho, spare a man sum feedback ! ! !
+If you wanna peek through that code tho, spare a man sum feedback plz,
 I could be doing something completely wrong n i wouldnt know, so any and all feedback helps :)
 
 ![tetris here](https://github.com/nectarboy/gameboy/blob/main/docs/tetris/demo_new.png?raw=true)
