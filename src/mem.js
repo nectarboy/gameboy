@@ -438,15 +438,6 @@ const Mem = function (nes, cpu) {
 
         return data;
     };
-
-    this.LoadSram = function (data) {
-        if (!this.evenhasram || !this.hasbatterysave)
-            throw 'cannot load save !';
-
-        var length = Math.min (data.length, this.cartram.length);
-        for (var i = 0; i < data.length; i ++)
-            this.cartram [i] = data [i];
-    };
  
     // =============== //   MBC Controllers //
 

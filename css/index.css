@@ -40,16 +40,32 @@ html, body {
 	font-size: 20px;
 }
 
-/* WRAP */
-
+/* outer wrap babe */
 .outerwrap {
 	display: flex;
 	text-align: center;
 	justify-content: center;
 }
 
+/* MAMA DIV - the div that contains gb and settings */
+
+.mama {
+	display: flex;
+	margin: 0 auto;
+}
+
+.spread {
+	margin: 10px;
+	padding: 10px;
+}
+
+/* GAMEBOY WRAP */
+
 .gbwrap {
 	padding: 30px 25px 40px 25px;
+
+	flex: 50%;
+	float: left;
 
 	user-select: none;
 
@@ -57,7 +73,7 @@ html, body {
 	border-radius: 10px 10px 30px 5px; /* 8 8 24 8 */
 }
 
-/* TOP BOTTOM */
+/* --- */
 
 .gbtop {
 	text-align: center;
@@ -73,6 +89,36 @@ html, body {
 
 .gbgap {
 	padding: 30px;
+}
+
+/* SETTINGS WRAP */
+
+.setwrap {
+	padding: 0px 25px 40px 25px;
+
+	width: 320px;
+	height: 480px;
+
+	text-align: center;
+
+	flex: 50%;
+	float: left;
+
+	border: 1px solid #A55AFF;
+	border-radius: 10px 10px 30px 5px; /* 8 8 24 8 */
+}
+
+/* text options */
+.subtit {
+	/* titties lol */
+	color: #A55AFF;
+	font-size: 16px;
+}
+
+.smalltext {
+	/* titties lol */
+	color: #A55AFF;
+	font-size: 11px;
 }
 
 /* BUTTONS */

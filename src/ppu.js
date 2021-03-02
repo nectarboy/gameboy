@@ -542,13 +542,13 @@ const Ppu = function (nes) {
                 var realX = sprite.x - 8;
 
                 // Don't draw offscreen sprites
-                if (realY >= gbheight || realY < 0)
+                if (realY >= gbheight)
                     continue;
 
-                // If dubby sprites on set tall tile lsb to 0
                 var tile = sprite.tile;
                 var height;
 
+                // If dubby sprites on set tall tile lsb to 0
                 if (this.lcdc.tall_sprites) {
                     tile &= 0xfe;
                     height = 15;

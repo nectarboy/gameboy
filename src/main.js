@@ -2,8 +2,6 @@ const Gameboy = function () {
 
     var gb = this;
 
-    this.canvas = null;
-
     // =============== //   Components //
 
     this.cpu = new Cpu (this);
@@ -46,6 +44,13 @@ const Gameboy = function () {
             pallete [i].g = (hex & 0x00ff00) >> 8;
             pallete [i].b = (hex & 0x0000ff) >> 0;
         }
+    };
+
+    // Attaching canvas
+    this.canvas = null;
+    this.AttachCanvas = function (canvas) {
+        this.canvas = canvas;
+        this.ppu.ResetCtx ();
     };
 
     // =============== //   Functions //
@@ -97,9 +102,32 @@ const Gameboy = function () {
         this.Reset ();
     };
 
-    this.AttachCanvas = function (c) {
-        this.canvas = c;
-        this.ppu.ResetCtx ();
+    // Battery save files
+    this.InsertSram = function (data) {
+        var mem = this.cpu.mem;
+
+        if (!mem.evenhasram || !mem.hasbatterysave)
+            throw 'cannot load save !';
+
+        var length = Math.min (data.length, mem.cartram.length);
+        for (var i = 0; i < data.length; i ++)
+            mem.cartram [i] = data [i];
+
+        this.Reset ();
+    };
+
+    this.GetSramArray = function () {
+        var mem = this.cpu.mem;
+
+        if (!mem.evenhasram || !mem.hasbatterysave)
+            throw 'no save file available !';
+
+        // Export save data
+        var data = [];
+        for (var i = 0; i < mem.cartram.length; i ++)
+            data [i] = mem.cartram [i];
+
+        return data;
     };
 
 };

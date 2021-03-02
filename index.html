@@ -19,38 +19,57 @@
 		<div class='gbgap'></div>
 
 		<div class='outerwrap'>
+			<div class='mama'>
 
-			<!----- GameBoy div ----->
-			<div class='gbwrap'> 
+				<!----- GameBoy div ----->
+				<div class='spread'>
+				<div class='gbwrap'> 
 
-				<div class='gbtop'>
-					<div class='screenwrap'>
+					<div class='gbtop'>
+						<div class='screenwrap'>
 
-						<div class='screencontainer'>
-							<canvas id='nanacanvas' class='screen' width='160' height='144'></canvas>
-							<span id='nanastat' class='status_text'></span>
+							<div class='screencontainer'>
+								<canvas id='nanacanvas' class='screen' width='160' height='144'></canvas>
+								<span id='nanastat' class='status_text'></span>
+							</div>
+
+							<div class='center_flex_div'>
+								<img src='img/gb_logo.png' class='gb_logo' draggable='false'>
+							</div>
+
 						</div>
+					</div>
 
-						<div class='center_flex_div'>
-							<img src='img/gb_logo.png' class='gb_logo' draggable='false'>
-						</div>
+					<div class='gbgap'></div>
 
+					<div class='gbbottom'>
+						<!-- File input -->
+						<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom' class='hide'>
+						<label for='nanafin' class='filebutton' style='width:200px;'>Choose ROM</label>
+						<br>
+
+						<label id='nanapause' class='roundbutton'></label>
+						<label id='nanareset' class='roundbutton'></label>
+						
+						<!--Step Button
+						<label id='nanapause' class='filebutton'>Step</label> -->
 					</div>
 				</div>
+				</div>
 
-				<div class='gbgap'></div>
+				<!----- Settings div ----->
+				<div class='spread'>
+				<div class='setwrap'>
 
-				<div class='gbbottom'>
-					<!-- File input -->
-					<input id='nanafin' type='file' accept='.gb, .gbc, .bin, .rom' class='hide'>
-					<label for='nanafin' class='filebutton' style='width:200px;'>Choose ROM</label>
-					<br>
+					<p class='title' style='font-size: 24px'>Settings</p>
 
-					<label id='nanapause' class='roundbutton'></label>
-					<label id='nanareset' class='roundbutton'></label>
-					
-					<!--Step Button
-					<label id='nanapause' class='filebutton'>Step</label> -->
+					<p class='subtit'>Save files</p>
+
+					<label id='nanaexportsave' class='smallbutton'>Export</label>
+					<input id='nanaimportsave' type='file' accept='.sav' class='hide'>
+					<label for='nanaimportsave' class='smallbutton'>Import</label>
+
+				</div>
 				</div>
 
 			</div>
@@ -75,6 +94,9 @@
 					const nanaPause = document.getElementById ('nanapause');
 					const nanaReset = document.getElementById ('nanareset');
 
+					const nanaExportSave = document.getElementById ('nanaexportsave');
+					const nanaImportSave = document.getElementById ('nanaimportsave');
+
 					function SetButtonImg (button, img) {
 						button.style.backgroundImage = 'url(' + img.src + ')';
 					}
@@ -82,6 +104,11 @@
 					// Gameboy
 					const gb = new Gameboy ();
 					gb.AttachCanvas (nanaCanvas);
+
+					function Start () {
+						gb.Start ();
+						SetButtonImg (nanaPause, images.pause);
+					}
 
 					// Palletes
 					this.palletes = {
@@ -166,7 +193,52 @@
 						SetStatMsg ('reset !');
 					};
 
-					// File reading
+					// Save importing
+					function ReadSaveFile (file) {
+						var fr = new FileReader ();
+
+				        fr.onload = function () {
+							var data = new Uint8Array (fr.result);
+
+				            try {
+				            	gb.InsertSram (data); // This may throw an error
+				            	Start ();
+
+					            SetStatMsg ('save loaded :)');
+				            }
+				            catch (e) {
+				            	SetStatMsg (e);
+				            }
+				        };
+
+				        fr.readAsArrayBuffer (file);
+					};
+
+					nanaImportSave.onchange = function (e) {
+						var file = e.target.files [0];
+						if (!file)
+							return;
+
+						ReadSaveFile (file);
+					};
+
+					// Save exporting
+					nanaExportSave.onclick = function () {
+						try {
+							var data = gb.GetSramArray ();
+
+							// Save to user drive
+							var blob = new Blob ([new Uint8Array (data)], {type: 'application/octet-stream'});
+							saveAs (blob, lastreadFilename + '.sav');
+						}
+						catch (e) {
+							SetStatMsg (e);
+						}
+					};
+
+					// Rom file input
+					var lastreadFilename = 'rom';
+
 					function ReadRomFile (file) {
 				        var fr = new FileReader ();
 
@@ -175,10 +247,7 @@
 
 				            try {
 				            	gb.InsertRom (rom); // This may throw an error
-				            	gb.Start ();
-
-					            SetButtonImg (nanaPause, images.pause);
-					            // SetStatMsg ('rom loaded :)');
+				            	Start ();
 				            }
 				            catch (e) {
 				            	SetStatMsg (e);
@@ -188,10 +257,12 @@
 				        fr.readAsArrayBuffer (file);
 					}
 
-					nanaFin.onchange = function (evt) {
-						var file = evt.target.files [0];
+					nanaFin.onchange = function (e) {
+						var file = e.target.files [0];
 						if (!file)
 							return;
+
+						lastreadFilename = file.name.split ('.') [0]; // Remove file extension
 
 						ReadRomFile (file);
 					};
