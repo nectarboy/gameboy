@@ -223,8 +223,6 @@ const Ppu = function (nes) {
             this.yflip = 
             this.xflip = false;
             this.pallete = 0;
-
-            this.row = 0; // Used to decide which row to draw
         };
 
         // Byte write methods
@@ -286,11 +284,6 @@ const Ppu = function (nes) {
         });
     };
 
-    this.ResetSpriteRows = function () {
-        for (var i = 0; i < this.spritePool.length; i ++)
-            this.spritePool [i].row = 0; 
-    };
-
     // The almighty scanline handler ...
 
     this.HandleScan = function (cycled) {
@@ -347,8 +340,6 @@ const Ppu = function (nes) {
                     this.WriteMode (1);
 
                     this.RenderImg (); // Draw picture ! (in v-sync uwu)
-                    this.ResetSpriteRows ();
-
                     nes.joypad.PollJoypad (); // Update the joypad
                 }
                 else
@@ -536,7 +527,7 @@ const Ppu = function (nes) {
             for (var i = 0; i < this.acceptedSprites.length; i ++) {
                 var sprite = this.acceptedSprites [i];
 
-                var row = sprite.row ++;
+                var row = this.ly + 16 - sprite.y;
 
                 var realY = sprite.y - 16 + row;
                 var realX = sprite.x - 8;

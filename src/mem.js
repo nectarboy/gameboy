@@ -189,7 +189,7 @@ const Mem = function (nes, cpu) {
             nes.ppu.CheckCoincidence ();
         },
 
-        // DMA transfer - TODO: add the propert
+        // DMA transfer - TODO: add the proper timings ?? nah
         [0x46]: function (val) {
             var dest = val << 8; // 0xXX00 - 0xXX9F
 

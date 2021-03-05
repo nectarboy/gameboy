@@ -330,7 +330,7 @@ this.CheckInterrupts = function () {
             return mem.wram [addr - 0xc000];
         }
         // ECHO RAM //
-        if (addr < 0xff00) {
+        if (addr < 0xfe00) {
             return mem.wram [addr - 0xe000];
         }
         // VIDEO (oam) //
@@ -399,7 +399,7 @@ this.CheckInterrupts = function () {
             var mode = nes.ppu.stat.mode;
             // Block write if lcd mode is 2 or 3
             if (mode > 1)
-                return val;
+                return val
 
             // Write object properties to sprite pool
             addr -= 0xfe00;
@@ -462,37 +462,33 @@ this.CheckInterrupts = function () {
     this.msBefore =
     this.msAfter = 0;
 
-    this.Step = function (extracycles) {
-        var ppu = nes.ppu;
-
-        var precycles =
-        this.cycles = 0;
-
+    this.RunFrame = function (extracycles) {
         var cycles = this.cyclesperframe - extracycles;
 
-        while (cycles > 0) {
-            // Handle program flow
-            this.ops.ExeIns ();
-            this.CheckInterrupts ();
-
-            // Get cycles elapsed
-            var cycled = this.cycles - precycles;
-            precycles = this.cycles;
-
-            // Handle ppu and timers
-            ppu.HandleScan (cycled);
-            this.HandleTimers (cycled);
-
-            cycles -= cycled;
-        }
+        while (cycles > 0)
+            cycles -= this.Step ();
 
         return cycles;
+    };
+
+    this.Step = function () {
+        this.cycles = 0;
+
+        // Handle program flow
+        this.ops.ExeIns ();
+        this.CheckInterrupts ();
+
+        // Handle ppu and timers
+        nes.ppu.HandleScan (this.cycles);
+        this.HandleTimers (this.cycles);
+
+        return this.cycles;
     };
 
     this.LoopExe = function (extracycles) {
         this.msBefore = performance.now ();
 
-        var cycled = this.Step (extracycles);
+        var cycled = this.RunFrame (extracycles);
 
         this.msAfter = performance.now ();
         var msSpent = this.msAfter - this.msBefore; // Time spent on emulation
