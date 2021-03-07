@@ -39,6 +39,7 @@ A big thank you to everyone here for helping me out.
 seriously i woulda given up loong ago if it weren't for yall <333
 
 - [YY-CHR - the tile editor](https://w.atwiki.jp/yychr/) (for that kickass purple pallete !!!)
+- [Optix' Free Bootrom !](https://github.com/Hacktix/Bootix)
 - [The emudev discord](https://discord.gg/dkmJAes) (tysm yall <3)
 - [The emudev community as a whole](https://www.reddit.com/r/EmuDev/)
 - [The pan-docs fsss](https://discord.gg/dkmJAes)

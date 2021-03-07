@@ -1,177 +1,177 @@
 const Joypad = function (nes) {
 
-	var joypad = this;
+    var joypad = this;
 
-	var mem = nes.cpu.mem;
+    var mem = nes.cpu.mem;
 
-	// =============== //   Basic Elements //
+    // =============== //   Basic Elements //
 
-	// Joypad buttons
-	this.up =
-	this.down =
-	this.left =
-	this.right =
+    // Joypad buttons
+    this.up =
+    this.down =
+    this.left =
+    this.right =
 
-	this.b =
-	this.a =
+    this.b =
+    this.a =
 
-	this.start =
-	this.select = false; // 1 means unpressed
+    this.start =
+    this.select = false; // 1 means unpressed
 
-	// Joypad selects
-	this.selectbutt = // Butt lol
-	this.selectdpad = false;
+    // Joypad selects
+    this.selectbutt = // Butt lol
+    this.selectdpad = false;
 
-	// =============== //   Basic Functions //
+    // =============== //   Basic Functions //
 
-	// We do this every once a while
-	this.PollJoypad = function () {
-		var pressed = 0;
+    // We do this every once a while
+    this.PollJoypad = function () {
+        var pressed = 0;
 
-		// Buttons
-		pressed |= this.selectbutt
-			&& ((this.start << 3) | (this.select << 2) | (this.b << 1) | (this.a));
+        // Buttons
+        pressed |= this.selectbutt
+            && ((this.start << 3) | (this.select << 2) | (this.b << 1) | (this.a));
 
-		// D-pad
-		pressed |= this.selectdpad
-			&& ((this.down << 3) | (this.up << 2) | (this.left << 1) | (this.right));
+        // D-pad
+        pressed |= this.selectdpad
+            && ((this.down << 3) | (this.up << 2) | (this.left << 1) | (this.right));
 
-		var preJoy = mem.ioreg [0x00];
+        var preJoy = mem.ioreg [0x00];
 
-		mem.ioreg [0x00] &= 0xf0; // Clear press bits ...
-		var postJoy = mem.ioreg [0x00] |= ~pressed; // ... and write pressed bits !
+        mem.ioreg [0x00] &= 0xf0; // Clear press bits ...
+        var postJoy = mem.ioreg [0x00] |= ~pressed; // ... and write pressed bits !
 
-		// Hi to lo ?
-		if (postJoy < preJoy)
-			nes.cpu.iflag.SetJoypad ();
-	};
+        // Hi to lo ?
+        if (postJoy < preJoy)
+            nes.cpu.iflag.SetJoypad ();
+    };
 
-	// Reset
-	this.Reset = function () {
-		mem.ioreg [0x00] |= 0x0f; // Reset button states
+    // Reset
+    this.Reset = function () {
+        mem.ioreg [0x00] |= 0x0f; // Reset button states
 
-		// Reset button states
-		this.up =
-		this.down =
-		this.left =
-		this.right =
-		this.b =
-		this.a =
-		this.start =
-		this.select = false; // 1 means unpressed
+        // Reset button states
+        this.up =
+        this.down =
+        this.left =
+        this.right =
+        this.b =
+        this.a =
+        this.start =
+        this.select = false; // 1 means unpressed
 
-		// Reset selects
-		this.selectbutt =
-		this.selectdpad = false;
-	};
+        // Reset selects
+        this.selectbutt =
+        this.selectdpad = false;
+    };
 
-	// =============== //   Key Events //
+    // =============== //   Key Events //
 
-	this.keybinds = {
-		up: 'ArrowUp',
-		down: 'ArrowDown',
-		left: 'ArrowLeft',
-		right: 'ArrowRight',
+    this.keybinds = {
+        up: 'ArrowUp',
+        down: 'ArrowDown',
+        left: 'ArrowLeft',
+        right: 'ArrowRight',
 
-		b: 'KeyX',
-		a: 'KeyZ',
+        b: 'KeyX',
+        a: 'KeyZ',
 
-		start: 'Enter',
-		select: 'ShiftRight'
-	};
+        start: 'Enter',
+        select: 'ShiftRight'
+    };
 
-	this.keyboardAPI = {
-		// -- Key state setter -- //
-		SetKeyState (code, val) {
-			var keybinds = joypad.keybinds;
+    this.keyboardAPI = {
+        // -- Key state setter -- //
+        SetKeyState (code, val) {
+            var keybinds = joypad.keybinds;
 
-			switch (code) {
-				case keybinds.up:
-					joypad.up = val;
-					break;
-				case keybinds.down:
-					joypad.down = val;
-					break;
-				case keybinds.left:
-					joypad.left = val;
-					break;
-				case keybinds.right:
-					joypad.right = val;
-					break;
+            switch (code) {
+                case keybinds.up:
+                    joypad.up = val;
+                    break;
+                case keybinds.down:
+                    joypad.down = val;
+                    break;
+                case keybinds.left:
+                    joypad.left = val;
+                    break;
+                case keybinds.right:
+                    joypad.right = val;
+                    break;
 
-				case keybinds.b:
-					joypad.b = val;
-					break;
-				case keybinds.a:
-					joypad.a = val;
-					break;
+                case keybinds.b:
+                    joypad.b = val;
+                    break;
+                case keybinds.a:
+                    joypad.a = val;
+                    break;
 
-				case keybinds.start:
-					joypad.start = val;
-					break;
-				case keybinds.select:
-					joypad.select = val;
-					break;
+                case keybinds.start:
+                    joypad.start = val;
+                    break;
+                case keybinds.select:
+                    joypad.select = val;
+                    break;
 
-				default:
-					return false;
-			}
+                default:
+                    return false;
+            }
 
-			return true;
-		},
+            return true;
+        },
 
-		// -- On key press -- //
-		pressed: {},
+        // -- On key press -- //
+        pressed: {},
 
-		OnKeyDown (e) {
-			// Check if holding down
-			if (this.pressed [e.keyCode])
-				return e.preventDefault ();
-			this.pressed [e.keyCode] = true;
+        OnKeyDown (e) {
+            // Check if holding down
+            if (this.pressed [e.keyCode])
+                return e.preventDefault ();
+            this.pressed [e.keyCode] = true;
 
-			if (this.SetKeyState (e.code, true))
-				e.preventDefault ();
-		},
+            if (this.SetKeyState (e.code, true))
+                e.preventDefault ();
+        },
 
-		OnKeyUp (e) {
-			delete this.pressed [e.keyCode]; // Reset pressed keystate
+        OnKeyUp (e) {
+            delete this.pressed [e.keyCode]; // Reset pressed keystate
 
-			this.SetKeyState (e.code, false);
-		},
+            this.SetKeyState (e.code, false);
+        },
 
-		// -- Event listeners -- //
-		Start () {
-			if (!nes.keyboardEnabled)
-				return;
+        // -- Event listeners -- //
+        Start () {
+            if (!nes.keyboardEnabled)
+                return;
 
-			document.addEventListener ('keydown', keydownlisten);
-			document.addEventListener ('keyup', keyuplisten);
-		},
+            document.addEventListener ('keydown', keydownlisten);
+            document.addEventListener ('keyup', keyuplisten);
+        },
 
-		Stop () {
-			document.removeEventListener ('keydown', keydownlisten);
-			document.removeEventListener ('keyup', keyuplisten);
+        Stop () {
+            document.removeEventListener ('keydown', keydownlisten);
+            document.removeEventListener ('keyup', keyuplisten);
 
-			joypad.Reset ();
-		}
+            joypad.Reset ();
+        }
 
-	};
+    };
 
-	// Because event listeners redefine 'this', we use an external function
-	function keydownlisten (e) {
-		joypad.keyboardAPI.OnKeyDown (e);
-	}
-	function keyuplisten (e) {
-		joypad.keyboardAPI.OnKeyUp (e);
-	}
+    // Because event listeners redefine 'this', we use an external function
+    function keydownlisten (e) {
+        joypad.keyboardAPI.OnKeyDown (e);
+    }
+    function keyuplisten (e) {
+        joypad.keyboardAPI.OnKeyUp (e);
+    }
 
-	// =============== //   Gamepad Events //
+    // =============== //   Gamepad Events //
 
-	this.gamepads = {};
+    this.gamepads = {};
 
-	this.gamepadListener = {
-		// -- Press state setter -- //
-		
-	};
-	
+    this.gamepadListener = {
+        // -- Press state setter -- //
+        
+    };
+    
 };
