@@ -340,7 +340,6 @@ const Ppu = function (nes) {
                     this.WriteMode (1);
 
                     this.RenderImg (); // Draw picture ! (in v-sync uwu)
-                    nes.joypad.PollJoypad (); // Update the joypad
                 }
                 else
                     this.WriteMode (2); // Reset

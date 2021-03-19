@@ -6,6 +6,7 @@ const Gameboy = function () {
 
     this.cpu = new Cpu (this);
     this.ppu = new Ppu (this);
+    this.apu = new Apu (this);
     this.joypad = new Joypad (this);
 
     // =============== //   Settings //
@@ -90,9 +91,10 @@ const Gameboy = function () {
     };
 
     this.Reset = function () {
-        this.cpu.Reset ();
         this.ppu.Reset ();
+        this.apu.Reset ();
         this.joypad.Reset ();
+        this.cpu.Reset ();
     };
 
     this.InsertRom = function (rom) {

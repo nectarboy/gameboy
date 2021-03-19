@@ -25,6 +25,7 @@ const Cpu = function (nes) {
     // Program
     this.pc = 0x0000; // A placeholder for the bootfirm
     this.cycles = 0;
+    this.cyclesThisFrame = 0;
 
     // Stack
     this.sp = 0x0000; // Stack pointer
@@ -267,7 +268,6 @@ this.CheckInterrupts = function () {
             this.DivTick ();
             this.divclocks -= this.divrate;
         }
-
         while (this.timaclocks >= this.timarate) {
             this.TimaTick ();
             this.timaclocks -= this.timarate;
@@ -465,8 +465,11 @@ this.CheckInterrupts = function () {
     this.RunFrame = function (extracycles) {
         var cycles = this.cyclesperframe - extracycles;
 
-        while (cycles > 0)
+        this.cyclesThisFrame = 0;
+
+        while (cycles > 0) {
             cycles -= this.Step ();
+        }
 
         return cycles;
     };
@@ -478,9 +481,12 @@ this.CheckInterrupts = function () {
         this.ops.ExeIns ();
         this.CheckInterrupts ();
 
-        // Handle ppu and timers
+        // Handle ppu, timers, and apu
         nes.ppu.HandleScan (this.cycles);
         this.HandleTimers (this.cycles);
+        nes.apu.SoundController (this.cycles, this.cyclesThisFrame); // GOD FUCK THE APU
+
+        this.cyclesThisFrame += this.cycles;
 
         return this.cycles;
     };
@@ -488,6 +494,7 @@ this.CheckInterrupts = function () {
     this.LoopExe = function (extracycles) {
         this.msBefore = performance.now ();
 
+        nes.joypad.PollJoypad (); // Poll joypad each frame !
         var cycled = this.RunFrame (extracycles);
 
         this.msAfter = performance.now ();

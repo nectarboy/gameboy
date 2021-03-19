@@ -18,7 +18,7 @@ const Mem = function (nes, cpu) {
     this.vram = new Uint8Array (0x2000); // 8KB of video ram
 
     // Cartram - 0xa000 - 0xbfff
-    this.cartram = new Uint8Array (0x2000); // variable amt of (maybe bankable) ram found in cart
+    this.cartram = null; // variable amt of ram found in cart
     // Work ram - 0xc000 - 0xdfff
     this.wram = new Uint8Array (0x2000); // 8KB of ram to work with
 
@@ -86,16 +86,17 @@ const Mem = function (nes, cpu) {
             var ii = val & 3;
 
             if (ii === 0) {
-                cpu.timarate = cpu.cyclespersec / 1024;
+                cpu.timarate = 1024;
             }
             else {
+                // 00   - 1024 cycles
                 // 01   - 16 cycles
                 // 10   - 64 cycles
                 // 11   - 256 cycles
-                cpu.timarate = (4 << (ii * 2));
+                cpu.timarate = 4 << (ii * 2);
             }
 
-            cpu.timaenable = (val & 0b00000100) ? true : false; // Bit 2
+            cpu.timaenable = (val & 0b0100) ? true : false; // Bit 2
 
             mem.ioreg [0x07] // Set tac ioreg
                 = val | 0b11111000; // Mask out unused bits
@@ -112,6 +113,54 @@ const Mem = function (nes, cpu) {
 
             // Write to 0xff0f
             mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
+        },
+
+        // ----- SQUARE CHANEL 1 ----- //
+        // NR10 - sweep reg
+        [0x10]: function (val) {
+            nes.apu.chan1_sweep_time = (val & 0b01110000) >> 4;
+            nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
+            nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
+
+            mem.ioreg [0x10] = val;
+        },
+
+        // NR11 - length and pattern duty
+        [0x11]: function (val) {
+            nes.apu.chan1_pattern_duty = (val & 0b11000000) >> 6;
+            nes.apu.chan1_length_data = val & 0b00111111;
+
+            mem.ioreg [0x11] = val | 0b00111111;
+        },
+
+        // NR12 - volume envelope
+        [0x12]: function (val) {
+            nes.apu.chan1_env_init = 
+            nes.apu.chan1_env_vol = (val & 0b11110000) >> 4;
+
+            nes.apu.chan1_env_inc = (val & 0b1000) ? true : false;
+            var sweep = nes.apu.chan1_env_sweep = val & 0b0111;
+
+            nes.apu.chan1_env_interval = nes.apu.soundinterval / (64/sweep);
+            nes.apu.chan1_env_on = sweep > 0;
+
+            mem.ioreg [0x12] = val;
+        },
+
+        // NR13 - lower 8 bits of frequency
+        [0x13]: function (val) {
+            nes.apu.chan1_raw_freq &= 0x700; // Preserve top bits
+            nes.apu.chan1_raw_freq |= val;
+        },
+
+        // NR14 - higher 3 bits of frequency
+        [0x14]: function (val) {
+            nes.apu.chan1_counter_select = (val & 0b01000000) ? true : false; 
+
+            nes.apu.chan1_raw_freq &= 0xff; // Preserve bottom bits
+            nes.apu.chan1_raw_freq |= (val & 0b0111) << 8;
+
+            mem.ioreg [0x14] = val | 0b10111111;
         },
 
         // NR 50 - i need this so pokemon blue dont freeze
@@ -188,6 +237,7 @@ const Mem = function (nes, cpu) {
         [0x45]: function (val) {
             nes.ppu.lyc = mem.ioreg [0x45] = val;
             nes.ppu.CheckCoincidence ();
+            nes.ppu.UpdateStatSignal ();
         },
 
         // DMA transfer - TODO: add the proper timings ?? nah
@@ -271,8 +321,8 @@ const Mem = function (nes, cpu) {
     this.Reset = function () {
         // Reset all memory pies to 0
         this.vram.fill (0);
-        this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
-        //this.cartram.fill (0);
+        // this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
+        // this.cartram.fill (0);
         this.oam.fill (0);
         this.ioreg.fill (0);
         this.hram.fill (0);
@@ -339,7 +389,7 @@ const Mem = function (nes, cpu) {
                 this.maxrombanks = 96;
             }
             else
-                throw 'invalid rom !';
+                throw `invalid rom banking ${romSize.toString (16)} !`;
         }
         // Official sizes B)
         else {
@@ -357,8 +407,9 @@ const Mem = function (nes, cpu) {
                 this.maxrambanks = 8;
             else if (ramSize === 0x0)
                 this.maxrambanks = 0;
-            else
-                throw 'invalid rom !';
+            else {
+                throw `invalid ram banking ${ramSize.toString (16)} !`;
+            }
         }
 
         this.cartram = new Uint8Array (this.maxrambanks * 0x2000);
@@ -403,6 +454,7 @@ const Mem = function (nes, cpu) {
                 this.evenhasram = true;
             case 0xf:
                 this.hastimer = true;
+                this.hasbatterysave = true;
 
                 this.mbc = 3;
                 this.defaultRombank = 1;
@@ -421,7 +473,7 @@ const Mem = function (nes, cpu) {
                 break;
 
             default:
-                throw 'unsupported rom mbc !';
+                throw `unsupported rom mbc ${rom [0x147].toString (16)} !`;
         }
     };
 
@@ -518,15 +570,9 @@ const Mem = function (nes, cpu) {
 
     // Writes
     this.mbcWrite [1] = function (addr, val) {
-        // EXTRA RAM ENABLE //
+        // EXTERNAL RAM ENABLE //
         if (addr < 0x2000) {
-            var bank = val & 0xf;
-            
-            if (bank === 0xa)
-                mem.ramenabled = true;
-            else if (bank === 0x0)
-                mem.ramenabled = false;
-
+            mem.ramenabled = (val & 0xf) === 0xa ? true : false;
             return val;
         }
         // ROM BANK NUMBER //
