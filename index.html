@@ -69,6 +69,14 @@
 					<input id='nanaimportsave' type='file' accept='.sav' class='hide'>
 					<label for='nanaimportsave' class='smallbutton'>Import</label>
 
+					<p class='subtit'>Color palletes</p>
+
+					<form>
+						<label for='pallete' class='smalltxt'>Pick a pallete !</label>
+						<select name='pallete' id='nanapallete'>
+						</select>
+					</form>
+
 				</div>
 				</div>
 
@@ -97,6 +105,7 @@
 
 					const nanaExportSave = document.getElementById ('nanaexportsave');
 					const nanaImportSave = document.getElementById ('nanaimportsave');
+					const nanaPallete = document.getElementById ('nanapallete');
 
 					function SetButtonImg (button, img) {
 						button.style.backgroundImage = 'url(' + img.src + ')';
@@ -121,20 +130,56 @@
 						'wocky slush': ['75BC64', '639E64', '42603F', '21382A'],
 						'pastel': ['FFA8DC', 'FF60AA', 'CC53AB', 'A0468E'],
 
-						// Other ppl's
-						'yychr': ['dec69c', 'a55aff', '942994', '003973'], // w.atwiki.jp/yychr
+						// Other ppl's palletes !
+						'juice': ['dec69c', 'a55aff', '942994', '003973'], // w.atwiki.jp/yychr
 						'choco': ['ffe4c2', 'dca456', 'a9604c', '422936'], // lospec.com/palette-list/gb-chocolate
 						'kirby': ['f7bef7', 'e78686', '7733e7', '2c2c96'], // lospec.com/palette-list/kirby-sgb
 						'sheep': ['f9fbf3', 'e4c179', 'bc7967', '292039'], // lospec.com/palette-list/sheepsheep
 						'yoshi': ['e2f3e4', '94e344', '46878f', '332c50'], // lospec.com/palette-list/kirokaze-gameboy
 						'mist': ['c4f0c2', '5ab9a8', '1e606e', '2d1b00'], // lospec.com/palette-list/mist-gb
-						'starbug': ['8be5ff', '608fcf', '7550e8', '622e4c'] // lospec.com/palette-list/wish-gb
+						'starbug': ['8be5ff', '608fcf', '7550e8', '622e4c'], // lospec.com/palette-list/wish-gb
+						'moonlight': ['5fc75d', '36868f', '203671', '0f052d'], // lospec.com/palette-list/moonlight-gb
+						'manga': ['ffffff', '4aedff', 'ff8acd', 'b03e80'], // lospec.com/palette-list/mangavania
+						'cream': ['fff6d3', 'f9a875', 'eb6b6f', '7c3f58'], // lospec.com/palette-list/ice-cream-gb
+
+						// My sister made these :3
+						'pink pop': ['FFFFFF', 'FFD1E6', 'CD9BBB', '603651'],
+						'strawberry kisses': ['FFF1C9', 'FFC4E9', 'FF6B90', 'A3427B'],
+						'cotton candy': ['FFC4E9', 'B2E5FF', 'A35984', '2779A5'],
+						'skittles': ['FFD191', '9ACC99', 'FF7270', '2779A5'],
+						'grinch piss': ['FFFFFF', '40DB1A', 'FF4C4C', 'D81717']
 					};
+					// Default pallete
+					var defaultPallete = 'kirby';
+
+					// Fill in the pallete list in DOM
+					{
+						var keys = Object.keys (palletes);
+						for (var i = 0; i < keys.length; i++) {
+							var name = keys [i];
+
+							var option = document.createElement ('option');
+							// Option properties
+							option.value = name;
+							option.innerHTML = name;
+
+							nanaPallete.appendChild (option);
+
+							// Default selection
+							if (name !== defaultPallete)
+								continue;
+							nanaPallete.childNodes [i + 1].selected = true;
+						}
+
+						nanaPallete.onchange = function () {
+							gb.SetPallete (palletes [nanaPallete.value]);
+						};
+					}
 
 					// Default settings
 					gb.SetFPS (60); // 120 is performant but 60 is smoother
 					gb.bootromEnabled = false;
-					gb.SetPallete (palletes ['kirby']);
+					gb.SetPallete (palletes [defaultPallete]);
 
 					gb.keyboardEnabled = true;
 

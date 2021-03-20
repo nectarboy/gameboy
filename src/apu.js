@@ -22,15 +22,18 @@ const Apu = function (nes) {
 
         // Buffer channel 1
         var buffer1 = this.buffer.getChannelData (1);
-        var halfSquareWavePeriod = (this.buffer.sampleRate / freq) * 0.5;
+        var halfSquarePeriod = (this.buffer.sampleRate / freq) * 0.5;
+
+        var i = 0;
 
         var ii = this.lastBufferStop;
         var length = ii + cycleQuot;
         while (ii < length) {
-            var sample1 = ((ii / halfSquareWavePeriod) & 1) ? this.chan1_env_vol : -this.chan1_env_vol;
+            var sample1 = ((i / halfSquarePeriod) & 1) ? this.chan1_env_vol : -this.chan1_env_vol;
 
             buffer1 [ii] = sample1;
 
+            i ++;
             ii ++;
         }
 
@@ -104,20 +107,32 @@ const Apu = function (nes) {
     this.soundclocks = 0;
     this.soundinterval = 8192; // 4194304 / 512
 
+    this.soundOn = false;
+
     this.SoundController = function (cycled, cycledThisFrame) {
+        if (!this.soundOn)
+            return;
+
         this.soundclocks += cycled;
 
         if (this.soundclocks >= this.soundinterval) {
             // ---- CHANNEL 1 ---- //
             // Update envelope
             this.chan1_env_clocks ++;
-            if (this.chan1_env_clocks > this.chan1_env_interval) {
+            if (this.chan1_env_clocks >= this.chan1_env_interval) {
                 if (this.chan1_env_on) {
-                    this.vol += this.chan1_env_inc ? 1/16 : -1/16;
-                    if (this.vol > 1)
-                        this.vol = 1;
-                    else if (this.vol < 0)
-                        this.vol = 0;
+                    // Inc
+                    if (this.chan1_env_inc) {
+                        this.chan1_env_vol += 1/15;
+                        if (this.chan1_env_vol > 1)
+                            this.chan1_env_vol = 1;
+                    }
+                    // Dec
+                    else {
+                        this.chan1_env_vol -= (1/15);
+                        if (this.chan1_env_vol < 0)
+                            this.chan1_env_vol = 0;
+                    }
                 }
 
                 this.chan1_env_clocks = 0;

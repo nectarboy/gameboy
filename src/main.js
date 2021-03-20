@@ -66,7 +66,7 @@ const Gameboy = function () {
         );
 
         // Start components
-        this.cpu.LoopExe (1); // Don't go too harsh the first frame !
+        this.cpu.LoopExe (0);
         // this.ppu.RenderLoop (); // This causes screen tearing 
         this.joypad.keyboardAPI.Start ();
     };
