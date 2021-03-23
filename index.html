@@ -72,8 +72,8 @@
 					<p class='subtit'>Color palletes</p>
 
 					<form>
-						<label for='pallete' class='smalltxt'>Pick a pallete !</label>
-						<select name='pallete' id='nanapallete'>
+						<label for='palletelist' class='smalltxt'>Pick a pallete !</label>
+						<select name='palletelist' id='nanapallete'>
 						</select>
 					</form>
 
@@ -143,14 +143,14 @@
 						'cream': ['fff6d3', 'f9a875', 'eb6b6f', '7c3f58'], // lospec.com/palette-list/ice-cream-gb
 
 						// My sister made these :3
-						'pink pop': ['FFFFFF', 'FFD1E6', 'CD9BBB', '603651'],
+						'mono piink': ['FFFFFF', 'FFD1E6', 'CD9BBB', '603651'],
 						'strawberry kisses': ['FFF1C9', 'FFC4E9', 'FF6B90', 'A3427B'],
 						'cotton candy': ['FFC4E9', 'B2E5FF', 'A35984', '2779A5'],
-						'skittles': ['FFD191', '9ACC99', 'FF7270', '2779A5'],
-						'grinch piss': ['FFFFFF', '40DB1A', 'FF4C4C', 'D81717']
+						'eeeye candyyy': ['FFD191', '9ACC99', 'FF7270', '2779A5'],
+						'candy cane': ['FFFFFF', '40DB1A', 'FF4C4C', 'D81717']
 					};
 					// Default pallete
-					var defaultPallete = 'kirby';
+					const defaultPallete = 'kirby';
 
 					// Fill in the pallete list in DOM
 					{
@@ -180,6 +180,9 @@
 					gb.SetFPS (60); // 120 is performant but 60 is smoother
 					gb.bootromEnabled = false;
 					gb.SetPallete (palletes [defaultPallete]);
+
+					gb.SetVolume (0.05);
+					gb.EnableSound ();
 
 					gb.keyboardEnabled = true;
 

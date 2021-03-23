@@ -25,7 +25,6 @@ const Cpu = function (nes) {
     // Program
     this.pc = 0x0000; // A placeholder for the bootfirm
     this.cycles = 0;
-    this.cyclesThisFrame = 0;
 
     // Stack
     this.sp = 0x0000; // Stack pointer
@@ -262,12 +261,16 @@ this.CheckInterrupts = function () {
     
     this.HandleTimers = function (cycled) {
         this.divclocks += cycled;
-        this.timaclocks += cycled;
-
-        while (this.divclocks >= this.divrate) {
+        if (this.divclocks >= this.divrate) {
             this.DivTick ();
             this.divclocks -= this.divrate;
         }
+
+        if (!this.timaenable)
+            return;
+
+        this.timaclocks += cycled;
+        // While cuz timarate b smoll sometimes
         while (this.timaclocks >= this.timarate) {
             this.TimaTick ();
             this.timaclocks -= this.timarate;
@@ -399,7 +402,7 @@ this.CheckInterrupts = function () {
             var mode = nes.ppu.stat.mode;
             // Block write if lcd mode is 2 or 3
             if (mode > 1)
-                return val
+                return val;
 
             // Write object properties to sprite pool
             addr -= 0xfe00;
@@ -465,8 +468,6 @@ this.CheckInterrupts = function () {
     this.RunFrame = function (extracycles) {
         var cycles = this.cyclesperframe - extracycles;
 
-        this.cyclesThisFrame = 0;
-
         while (cycles > 0) {
             cycles -= this.Step ();
         }
@@ -484,9 +485,7 @@ this.CheckInterrupts = function () {
         // Handle ppu, timers, and apu
         nes.ppu.HandleScan (this.cycles);
         this.HandleTimers (this.cycles);
-        nes.apu.SoundController (this.cycles, this.cyclesThisFrame); // GOD FUCK THE APU
-
-        this.cyclesThisFrame += this.cycles;
+        nes.apu.SoundController (this.cycles); // GOD FUCK THE APU
 
         return this.cycles;
     };

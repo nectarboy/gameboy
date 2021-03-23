@@ -54,6 +54,48 @@ const Gameboy = function () {
         this.ppu.ResetCtx ();
     };
 
+    // Sound enable
+    this.soundenabled = false;
+    this.soundcontroller_func = this.apu.SoundController;
+
+    this.EnableSound = function () {
+        this.soundenabled = true;
+        this.apu.SoundController = this.soundcontroller_func;
+
+        this.apu.gainNode.gain.value = this.volume;
+    };
+
+    this.DisableSound = function () {
+        this.soundenabled = false;
+        this.apu.SoundController = function () {};
+
+        // Stop sound immediately
+        this.apu.gainNode.gain.value = 0;
+    };
+    this.DisableSound (); // ... by default
+
+    this.ToggleSoundEnable = function () {
+        if (!this.soundenabled)
+            this.Stop ();
+        else
+            this.Start ();
+
+        return this.soundenabled;
+    };
+
+    // Sound volume
+    this.volume = 0;
+    /**
+     * @param {Number} vol
+     *
+     * A number between 1 and 0
+     * (1 is full, 0 is no)
+     */
+    this.SetVolume = function (vol) {
+        this.volume = 
+        this.apu.gainNode.gain.value = vol;
+    };
+
     // =============== //   Functions //
 
     this.Start = function () {

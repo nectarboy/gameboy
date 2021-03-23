@@ -59,16 +59,16 @@ const Mem = function (nes, cpu) {
         },
 
         // Serial Ports - used by test roms for output
-        [0x01]: function (val) {
+        /*[0x01]: function (val) {
             mem.ioreg [0x01] = val;
             // console.log ('01: ' + val.toString (16));
         },
         [0x02]: function (val) {
             mem.ioreg [0x02] = val;
             // console.log ('02: ' + val.toString (16));
-        },
+        },*/
 
-        // Div timer - incs every 256 cycles (TODO)
+        // Div timer - incs every 256 cycles
         [0x04]: function (val) {
             cpu.div = mem.ioreg [0x04] = 0; // Div is reset on write
         },
@@ -226,7 +226,7 @@ const Mem = function (nes, cpu) {
             ppu.stat.mode0_irq_on  = (val & 0b00001000) ? true : false; // Bit 3
 
             // Update stat signal on a change
-            if (val & 0b01111000 !== preStat)
+            if ((val & 0b01111000) !== preStat)
                 ppu.UpdateStatSignal ();
 
             // write to 0xff41
@@ -255,7 +255,7 @@ const Mem = function (nes, cpu) {
             nes.ppu.UpdateStatSignal ();
         },
 
-        // DMA transfer - TODO: add the proper timings ?? nah
+        // DMA transfer - TODO: add the proper timings ?? maybe
         [0x46]: function (val) {
             var dest = val << 8; // 0xXX00 - 0xXX9F
 
@@ -267,7 +267,7 @@ const Mem = function (nes, cpu) {
 
             mem.ioreg [0x46] = val;
 
-            cpu.cycles += 160; // DMA takes 160 t cycles
+            //cpu.cycles += 160; // DMA takes 160 t cycles ??
         },
 
         // Pallete shades

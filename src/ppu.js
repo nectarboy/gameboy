@@ -21,25 +21,25 @@ const Ppu = function (nes) {
     // LCDC status
     this.stat = {
         // Interrupt enables
-        coin_irq_on: false,    // Bit 6
-        mode2_irq_on: false,   // Bit 5
-        mode1_irq_on: false,   // Bit 4
-        mode0_irq_on: false,   // Bit 3
+        coin_irq_on: false,     // Bit 6
+        mode2_irq_on: false,    // Bit 5
+        mode1_irq_on: false,    // Bit 4
+        mode0_irq_on: false,    // Bit 3
 
         // Flags
-        coincidence: false, // Bit 2
-        mode: 0            // Bits 1 - 0
+        coincidence: false,     // Bit 2
+        mode: 0                 // Bits 1 - 0
     };
 
     // Flag setting methods
     this.SetCoincidence = function () {
         this.stat.coincidence = true;
-        mem.ioreg [0x41] |= 0b00000100; // Set bit 6
-    },
+        mem.ioreg [0x41] |= 0b0100; // Set bit 2
+    };
     this.ClearCoincidence = function () {
         this.stat.coincidence = false;
-        mem.ioreg [0x41] &= ~0b00000100; // Clear bit 6
-    },
+        mem.ioreg [0x41] &= ~0b0100; // Clear bit 2
+    };
 
     this.WriteMode = function (mode) {
         this.stat.mode = mode;
@@ -48,7 +48,7 @@ const Ppu = function (nes) {
         // Write mode to bits 1 - 0
         mem.ioreg [0x41] &= 0b11111100; // Clear last 2 bits, ready for setting
         mem.ioreg [0x41] |= mode; // Write mode to last 2 bits
-    }
+    };
 
     // Palletes
     this.palshades = {

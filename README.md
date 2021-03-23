@@ -27,12 +27,34 @@ So far here's what Pollen Boy has:
 
 ## How To Use
 Open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
-[something about settings and stuff here when i add em]
+The default controls are:
+```
+D-Pad: Arrow Keys
+B: X
+A: Z
+Start: Enter
+Select: Right Shift
+```
+
+On the right of the page are some settings, including:
+### Save Files
+If a game has save support, you can click <kbd>Export</kbd> to download the save on your drive.
+
+You can then <kbd>Import</kbd> save files onto games to continue your progress !
+
+### Color palletes
+If you wanna change the look of the game, you can choose from a list of color palletes i included.
+(I might add the ability to import custom palletes who knows)
+
+This doesn't actually affect the game, it just changes the default 4 shades the GB has uwu
 
 (PS: Pollen Boy does NOT come with roms ! You have to uhh ummm ,,, dump them urself ! ya dump them)
 
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
 ![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
+
+## Importing Pollen Boy
+Check out `IMPORTING.md` in the root.
 
 # Special Thanks !!!
 
@@ -40,7 +62,7 @@ A big thank you to everyone here for helping me out.
 seriously i woulda given up loong ago if it weren't for yall <333
 
 - [YY-CHR - the tile editor](https://w.atwiki.jp/yychr/) (for that kickass purple pallete !!!)
-- [Optix' Free Bootrom !](https://github.com/Hacktix/Bootix)
+- [Optix' Free Bootrom ! (though i think ill use the original one)](https://github.com/Hacktix/Bootix)
 - [The emudev discord](https://discord.gg/dkmJAes) (tysm yall <3)
 - [The emudev community as a whole](https://www.reddit.com/r/EmuDev/)
 - [The pan-docs fsss](https://discord.gg/dkmJAes)

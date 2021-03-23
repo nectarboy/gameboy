@@ -8,11 +8,13 @@ const Apu = function (nes) {
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext) ();
 
-    this.buffer = this.ctx.createBuffer (4, 4096, 22000); // 4 channels, 4096 samples, 44khz
+    this.buffer = this.ctx.createBuffer (1, 4096, 22000); // 4 channels, 4096 samples, 44khz
 
     this.gainNode = this.ctx.createGain ();
-    this.gainNode.gain.value = 0.04; // Audio volume
+    this.gainNode.gain.value = 0; // Audio volume
     this.gainNode.connect (this.ctx.destination);
+
+    this.source = null;
 
     // =============== //   Buffering //
 
@@ -21,7 +23,7 @@ const Apu = function (nes) {
         var freq = this.chan1_getFreq ();
 
         // Buffer channel 1
-        var buffer1 = this.buffer.getChannelData (1);
+        var buffer1 = this.buffer.getChannelData (0);
         var halfSquarePeriod = (this.buffer.sampleRate / freq) * 0.5;
 
         var i = 0;
@@ -31,7 +33,7 @@ const Apu = function (nes) {
         while (ii < length) {
             var sample1 = ((i / halfSquarePeriod) & 1) ? this.chan1_env_vol : -this.chan1_env_vol;
 
-            buffer1 [ii] = sample1;
+            buffer1 [ii] = sample1;;
 
             i ++;
             ii ++;
@@ -43,12 +45,12 @@ const Apu = function (nes) {
     };
 
     this.PlayBuffer = function () {
-        var source = this.ctx.createBufferSource ();
+        this.source = this.ctx.createBufferSource ();
 
-        source.buffer = this.buffer;
-        source.connect (this.gainNode);
+        this.source.buffer = this.buffer;
+        this.source.connect (this.gainNode);
 
-        source.start ();
+        this.source.start ();
     };
 
     this.FlushBuffer = function () {
@@ -139,7 +141,7 @@ const Apu = function (nes) {
             }
 
             // Filling the buffer
-            var bufferFull = this.StepBuffer (nes.cpu.cyclespersec / this.soundclocks);
+            var bufferFull = this.StepBuffer (512);
             if (bufferFull) {
                 this.lastBufferStop = 0;
                 this.PlayBuffer ();
