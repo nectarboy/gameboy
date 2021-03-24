@@ -47,6 +47,21 @@ const Gameboy = function () {
         }
     };
 
+    // Muting the volume immediately
+    this.STFU = function () {
+        try {
+            this.apu.gainNode.gain.value = 0;
+        }
+        catch (e) {}
+    };
+
+    this.UnSTFU = function () {
+        try {
+            this.apu.gainNode.gain.value = this.volume;
+        }
+        catch (e) {}
+    };
+
     // Attaching canvas
     this.canvas = null;
     this.AttachCanvas = function (canvas) {
@@ -62,15 +77,14 @@ const Gameboy = function () {
         this.soundenabled = true;
         this.apu.SoundController = this.soundcontroller_func;
 
-        this.apu.gainNode.gain.value = this.volume;
+        this.UnSTFU ();
     };
 
     this.DisableSound = function () {
         this.soundenabled = false;
         this.apu.SoundController = function () {};
 
-        // Stop sound immediately
-        this.apu.gainNode.gain.value = 0;
+        this.STFU ();
     };
     this.DisableSound (); // ... by default
 
@@ -111,12 +125,14 @@ const Gameboy = function () {
         this.cpu.LoopExe (0);
         // this.ppu.RenderLoop (); // This causes screen tearing 
         this.joypad.keyboardAPI.Start ();
+        this.UnSTFU ();
     };
 
     this.Stop = function () {
         this.cpu.StopExe ();
         // this.ppu.StopRendering ();
         this.joypad.keyboardAPI.Stop ();
+        this.STFU ();
 
         this.paused = true;
         console.log ('stopped execution.');
@@ -172,6 +188,23 @@ const Gameboy = function () {
             data [i] = mem.cartram [i];
 
         return data;
+    };
+
+    // =============== //   Debug //
+    
+    this.Memdump = function (mem) {
+        mem = this.cpu.mem [mem];
+
+        var str = '';
+        for (var i = 0; i < mem.length; i ++) {
+            if (i && (i % 16) === 0)
+                str += '\n';
+            str += ('0' + mem [i].toString (16)).slice (-2) + ' ';
+        }
+
+        // Open popup
+        var win = window.open("", "Memdump", "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=400,height=400,top="+(screen.height/2)+",left="+(screen.width/2));
+        win.document.body.innerHTML = '<pre>' + str + '</pre>';
     };
 
 };

@@ -351,11 +351,10 @@ this.CheckInterrupts = function () {
         }
         // IO REG
         if (addr < 0xff80) {
-            var ioaddr = addr - 0xff00;
+            addr &= 0xff;
 
-            if (!mem.ioonwrite [ioaddr]) // Unmapped mmio
-                return 0xff;
-            return mem.ioreg [ioaddr];
+            if (mem.ioMapped [addr])
+                return mem.ioreg [addr];
         }
         // HIGH
         if (addr < 0xffff) {
@@ -418,11 +417,10 @@ this.CheckInterrupts = function () {
         }
         // IO REG
         if (addr < 0xff80) {
-            var ioaddr = addr - 0xff00;
+            addr &= 0xff;
 
-            var ioonwrite = mem.ioonwrite [ioaddr];
-            if (ioonwrite)
-                ioonwrite (val);
+            if (mem.ioMapped [addr])
+                mem.IoWrite (addr, val);
             return val;
         }
         // HIGH
@@ -581,21 +579,6 @@ this.CheckInterrupts = function () {
     };
 
     // =============== //   Debugging //
-
-    this.Memdump = function (mem) {
-        mem = this.mem [mem];
-
-        var str = '';
-        for (var i = 0; i < mem.length; i ++) {
-            if (i && i % 16 === 0)
-                str += '\n';
-            str += ('0' + mem [i].toString (16)).slice (-2) + ' ';
-        }
-
-        // Open popup
-        var win = window.open("", "Title", "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=400,height=400,top="+(screen.height/2)+",left="+(screen.width/2));
-        win.document.body.innerHTML = '<pre>' + str + '</pre>';
-    };
 
     this.Panic = function (err) {
         // Program cannot progress any further now

@@ -14,12 +14,12 @@ const Apu = function (nes) {
     this.gainNode.gain.value = 0; // Audio volume
     this.gainNode.connect (this.ctx.destination);
 
-    this.source = null;
-
     // =============== //   Buffering //
 
+    try {
+
     this.lastBufferStop = 0;
-    this.StepBuffer = function (cycleQuot) {
+    this.StepBuffer = function (cycles) {
         var freq = this.chan1_getFreq ();
 
         // Buffer channel 1
@@ -29,7 +29,7 @@ const Apu = function (nes) {
         var i = 0;
 
         var ii = this.lastBufferStop;
-        var length = ii + cycleQuot;
+        var length = ii + cycles;
         while (ii < length) {
             var sample1 = ((i / halfSquarePeriod) & 1) ? this.chan1_env_vol : -this.chan1_env_vol;
 
@@ -45,12 +45,12 @@ const Apu = function (nes) {
     };
 
     this.PlayBuffer = function () {
-        this.source = this.ctx.createBufferSource ();
+        var source = this.ctx.createBufferSource ();
 
-        this.source.buffer = this.buffer;
-        this.source.connect (this.gainNode);
+        source.buffer = this.buffer;
+        source.connect (this.gainNode);
 
-        this.source.start ();
+        source.start ();
     };
 
     this.FlushBuffer = function () {
@@ -58,6 +58,13 @@ const Apu = function (nes) {
             for (var ii = 0; ii < buffer.length; ii ++)
                 buffer [ii] = 0;
     };
+
+    }
+    catch (e) {
+        console.log ('audio not supported. using fallback !');
+        this.StepBuffer = this.PlayBuffer = this.FlushBuffer =
+            function () {};
+    }
 
     // =============== //   Reset Function //
 

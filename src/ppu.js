@@ -131,6 +131,7 @@ const Ppu = function (nes) {
         this.ctx.putImageData (this.img, 0, 0);
     };
 
+    // Deprecated !
     this.RenderLoop = function () {
         this.RenderImg ();
 
@@ -293,85 +294,78 @@ const Ppu = function (nes) {
 
         this.ppuclocks += cycled;
 
-        var prestat = this.statsignal; // Pre-statsignal
-        var curr_mode = this.stat.mode;
+        switch (this.stat.mode) {
 
-        // ---- OAM MODE 2 ---- //
-        if (curr_mode === 2) {
+            // ---- OAM MODE 2 ---- //
+            case 2: {
+                if (this.ppuclocks >= this.oamlength) {
+                    // Mode 2 is over ...
+                    this.WriteMode (3);
+                    this.SearchOam ();
 
-            if (this.ppuclocks >= this.oamlength) {
-                // Mode 2 is over ...
-                this.WriteMode (3);
-                this.SearchOam ();
-
-                this.ppuclocks -= this.oamlength;
-            }
-
-        }
-        // ---- DRAW MODE 3 ---- //
-        else if (curr_mode === 3) {
-
-            // ... we're just imaginary plotting pixels dodododooo
-
-            if (this.ppuclocks >= this.drawlength) {
-                // Mode 3 is over ...
-                this.WriteMode (0);
-                this.RenderScan (); // Finally render on hblank :D
-
-                this.ppuclocks -= this.drawlength;
-            }
-
-        }
-        // ---- H-BLANK MODE 0 ---- //
-        else if (curr_mode === 0) {
-
-            // We're relaxin here ...
-
-            if (this.ppuclocks >= this.hblanklength) {
-                // Advance LY
-                this.ly ++;
-
-                this.CheckCoincidence ();
-                mem.ioreg [0x44] = this.ly;
-
-                // When entering vblank period ...
-                if (this.ly === gbheight) {
-                    cpu.iflag.SetVblank (); // Request vblank irq !
-                    this.WriteMode (1);
-
-                    this.RenderImg (); // Draw picture ! (in v-sync uwu)
+                    this.ppuclocks -= this.oamlength;
                 }
-                else
-                    this.WriteMode (2); // Reset
-
-                this.ppuclocks -= this.hblanklength;
             }
+            // ---- DRAW MODE 3 ---- //
+            case 3: {
+                // ... we're just imaginary plotting pixels dodododooo
 
-        }
-        // ---- V-BLANK MODE 1 ---- //
-        else if (curr_mode === 1) {
+                if (this.ppuclocks >= this.drawlength) {
+                    // Mode 3 is over ...
+                    this.WriteMode (0);
+                    this.RenderScan (); // Finally render on hblank :D
 
-            if (this.ppuclocks >= this.scanlinelength) {
-                // Advance LY
-                this.ly ++;
+                    this.ppuclocks -= this.drawlength;
+                }
+            }
+            // ---- H-BLANK MODE 0 ---- //
+            case 0: {
+                // We're relaxin here ...
 
-                // Check if out of vblank period ..
-                if (this.ly === 154) {
-                    this.ly = 0;
-                    this.wilc = 0;
+                if (this.ppuclocks >= this.hblanklength) {
+                    // Advance LY
+                    this.ly ++;
 
                     this.CheckCoincidence ();
+                    mem.ioreg [0x44] = this.ly;
 
-                    this.WriteMode (2); // Reset
+                    // When entering vblank period ...
+                    if (this.ly === gbheight) {
+                        cpu.iflag.SetVblank (); // Request vblank irq !
+                        this.WriteMode (1);
+
+                        this.RenderImg (); // Draw picture ! (in v-sync uwu)
+                    }
+                    else
+                        this.WriteMode (2); // Reset
+
+                    this.ppuclocks -= this.hblanklength;
                 }
-                else {
-                    this.CheckCoincidence ();
-                    this.UpdateStatSignal ();
+            }
+            // ---- V-BLANK MODE 1 ---- //
+            case 1: {
+                if (this.ppuclocks >= this.scanlinelength) {
+                    // Advance LY
+                    this.ly ++;
+
+                    // Check if out of vblank period ..
+                    if (this.ly === 154) {
+                        this.ly = 0;
+                        this.wilc = 0;
+
+                        this.CheckCoincidence ();
+
+                        this.WriteMode (2); // Reset
+                    }
+                    else {
+                        this.CheckCoincidence ();
+                        this.UpdateStatSignal ();
+                    }
+
+                    mem.ioreg [0x44] = this.ly;
+
+                    this.ppuclocks -= this.scanlinelength;
                 }
-
-                mem.ioreg [0x44] = this.ly;
-
-                this.ppuclocks -= this.scanlinelength;
             }
 
         }
@@ -408,16 +402,16 @@ const Ppu = function (nes) {
     this.lx = 
     this.ly = 0;
 
-    this.wx =
-    this.wy = 
+    this.wx = 0;
+    this.wy = 0;
 
     this.wilc = 0; // Window internal line counter
 
     // BG scroll positions
-    this.scrollx =
+    this.scrollx = 0;
     this.scrolly = 0;
 
-    this.sub_ly =  // Used to decide which row of tile to draw
+    this.sub_ly = 0; // Used to decide which row of tile to draw
 
     this.RenderScan = function () {
         // Ready up some stuff
@@ -432,13 +426,14 @@ const Ppu = function (nes) {
         var sub_wy = (this.wilc & 7) << 1; // (wilc % 8 * 2) 2 bits per pixel
 
         // Calculate tile data and map bases
-        var tiledatabase = this.lcdc.signed_addressing ? 0x8000 : 0x9000;
+        var tiledatabase = this.lcdc.signed_addressing ? 0x0000 : 0x1000; // 0x8000 - 0x9000
+        // We don't actually use the correct values, cuz we're doing direct vram access :3
 
         var bgmapbase = this.lcdc.bg_tilemap_alt ? 0x9c00 : 0x9800;
         var winmapbase = this.lcdc.window_tilemap_alt ? 0x9c00 : 0x9800;
 
         var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
-        var winindy = winmapbase + (this.wilc >> 3) * 32;
+        var winindy = winmapbase + ((this.wilc >> 3) * 32) - 0x8000; // Vram access fix
 
         var inWindowRn = this.lcdc.window_enabled && this.ly >= this.wy && this.wx < gbwidth;
 
@@ -447,7 +442,7 @@ const Ppu = function (nes) {
             if (inWindowRn && this.lx >= this.wx) {
 
                 var mapind = winindy + (wx >> 3);    // (x / 8) Background tile map
-                var patind = cpu.readByte (mapind); // Get tile index at map
+                var patind = mem.vram [mapind]; // Get tile index at map
 
                 // Calculate tile data address
 
@@ -456,11 +451,11 @@ const Ppu = function (nes) {
 
                 var addr =
                     tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
-                    + (sub_wy);            // (sub_ly * 2) Each line of a tile is 2 bytes
+                    + (sub_wy);                     // (sub_ly * 2) Each line of a tile is 2 bytes
 
                 // Get tile line data
-                var lobyte = cpu.readByte (addr ++);
-                var hibyte = cpu.readByte (addr);
+                var lobyte = mem.vram [addr ++];
+                var hibyte = mem.vram [addr];
 
                 // Mix and draw current tile line pixel
                 var bitmask = 1 << ((wx ^ 7) & 7);
@@ -480,7 +475,7 @@ const Ppu = function (nes) {
             else if (this.lcdc.bg_enabled) {
 
                 var mapind = mapindy + (x >> 3);    // (x / 8) Background tile map
-                var patind = cpu.readByte (mapind); // Get tile index at map
+                var patind = mem.vram [mapind - 0x8000]; // Get tile index at map
 
                 // Calculate tile data address
 
@@ -489,11 +484,11 @@ const Ppu = function (nes) {
 
                 var addr =
                     tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
-                    + (this.sub_ly << 1);            // (sub_ly * 2) Each line of a tile is 2 bytes
+                    + (this.sub_ly << 1);           // (sub_ly * 2) Each line of a tile is 2 bytes
 
                 // Get tile line data
-                var lobyte = cpu.readByte (addr ++);
-                var hibyte = cpu.readByte (addr);
+                var lobyte = mem.vram [addr ++];
+                var hibyte = mem.vram [addr];
 
                 // Mix and draw current tile line pixel
                 var bitmask = 1 << ((x ^ 7) & 7);
@@ -549,7 +544,7 @@ const Ppu = function (nes) {
                 // Calculate address
                 var addr =
                     // (0x8000 + [sprite tile index * 16])
-                    0x8000 + (tile << 4)
+                    (tile << 4) // We dont actually add 0x8000 for more efficient vram reads
                     // (sprite row * 2) we account for yflip as well
                     + (sprite.yflip
                         ? ((row ^ height) & height) << 1
@@ -558,8 +553,8 @@ const Ppu = function (nes) {
                 var pxind_y = realY * gbwidth;
 
                 // Get tile data
-                var lobyte = cpu.readByte (addr ++);
-                var hibyte = cpu.readByte (addr);
+                var lobyte = mem.vram [addr ++];
+                var hibyte = mem.vram [addr]
 
                 // Mix and draw all 8 pixels
                 for (var ii = 0; ii < 8; ii ++) {

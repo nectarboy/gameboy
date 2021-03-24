@@ -46,339 +46,289 @@ const Mem = function (nes, cpu) {
      * make a function that does stuff on write, but its a switch statement 
      */
 
-    /* io_mapped_array
-     * this array contains all io registers that are
-     * currently mapped. it will then be processed into
-     * an object with bools that decide whether to
-     * allow reads
-     */
-    var io_mapped_array = [
-        // 0
-        0x00, 0x04, 0x05, 0x06, 0x07, 0x0f,
-        // 1
-        0x10, 0x11, 0x12, 0x13, 0x14,
-        // 2
-        0x24, 0x26,
-        // 4
-        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 
-        0x48, 0x49, 0x4a, 0x4b,
-        // 5
-        0x50
-    ];
+    this.ioonwrite = {
+        // Joypad
+        [0x00]: function (val) {
+            nes.joypad.selectbutt = !(val & 0b00100000);
+            nes.joypad.selectdpad = !(val & 0b00010000);
+            
+            nes.joypad.PollJoypad ();
 
-    this.ioMapped = {};
-    // First, fill with falses ...
-    for (var i = 0; i < 0x80; i ++)
-        this.ioMapped [i] = false;
-    // ... then, fill with trues from the array
-    for (var i = 0; i < io_mapped_array.length; i ++)
-        this.ioMapped [io_mapped_array [i]] = true;
+            mem.ioreg [0x00] &= 0x0f; // Pressed bits are RO
+            mem.ioreg [0x00] |= (val & 0xf0) | 0b11000000; // Top bits dont exist
+        },
 
-    this.IoWrite = function (addr, val) {
-        addr &= 0xff;
+        // Serial Ports - used by test roms for output
+        /*[0x01]: function (val) {
+            mem.ioreg [0x01] = val;
+            // console.log ('01: ' + val.toString (16));
+        },
+        [0x02]: function (val) {
+            mem.ioreg [0x02] = val;
+            // console.log ('02: ' + val.toString (16));
+        },*/
 
-        switch (addr) {
-            // Joypad
-            case 0x00: {
-                nes.joypad.selectbutt = !(val & 0b00100000);
-                nes.joypad.selectdpad = !(val & 0b00010000);
-                
-                nes.joypad.PollJoypad ();
+        // Div timer - incs every 256 cycles
+        [0x04]: function (val) {
+            cpu.div = mem.ioreg [0x04] = 0; // Div is reset on write
+        },
+        // Tima timer - incs at a variable rate
+        [0x05]: function (val) {
+            cpu.tima = mem.ioreg [0x05] = val;
+        },
 
-                this.ioreg [addr] &= 0x0f; // Pressed bits are RO
-                this.ioreg [addr] |= (val & 0xf0) | 0b11000000; // Top bits dont exist
-                break;
+        // Tima module
+        [0x06]: function (val) {
+            cpu.timamod = mem.ioreg [0x06] = val;
+        },
+        // TAC
+        [0x07]: function (val) {
+            // Input clock select
+            var ii = val & 3;
+
+            if (ii === 0) {
+                cpu.timarate = 1024;
+            }
+            else {
+                // 00   - 1024 cycles
+                // 01   - 16 cycles
+                // 10   - 64 cycles
+                // 11   - 256 cycles
+                cpu.timarate = 4 << (ii * 2);
             }
 
-            // ---- Timers ---- //
-            // Div timer - incs every 256 cycles
-            case 0x04: {
-                cpu.div = this.ioreg [addr] = 0; // Div is reset on write
-                break;
-            }
-            // Tima timer - incs at a variable rate
-            case 0x05: {
-                cpu.tima = this.ioreg [addr] = val;
-                break;
-            }
+            cpu.timaenable = (val & 0b0100) ? true : false; // Bit 2
 
-            // Tima module
-            case 0x06: {
-                cpu.timamod = this.ioreg [addr] = val;
-                break;
-            }
-            // TAC
-            case 0x07: {
-                // Input clock select
-                var ii = val & 3;
+            mem.ioreg [0x07] // Set tac ioreg
+                = val | 0b11111000; // Mask out unused bits
+        },
 
-                if (ii === 0) {
-                    cpu.timarate = 1024;
-                }
-                else {
-                    // 00   - 1024 cycles
-                    // 01   - 16 cycles
-                    // 10   - 64 cycles
-                    // 11   - 256 cycles
-                    cpu.timarate = 4 << (ii * 2);
-                }
+        // IF
+        [0x0f]: function (val) {
+            // Set interrupt flags
+            cpu.iflag.vblank      = (val & 0b00000001) ? true : false; // Bit 0
+            cpu.iflag.lcd_stat    = (val & 0b00000010) ? true : false; // Bit 1
+            cpu.iflag.timer       = (val & 0b00000100) ? true : false; // Bit 2
+            cpu.iflag.serial      = (val & 0b00001000) ? true : false; // Bit 3
+            cpu.iflag.joypad      = (val & 0b00010000) ? true : false; // Bit 4
 
-                cpu.timaenable = (val & 0b0100) ? true : false; // Bit 2
+            // Write to 0xff0f
+            mem.ioreg [0x0f] = val | 0b11100000; // Unused bits always read 1
+        },
 
-                this.ioreg [addr] // Set tac ioreg
-                    = val | 0b11111000; // Mask out unused bits
-                break;
-            }
+        // ----- SQUARE CHANEL 1 ----- //
+        // NR10 - sweep reg
+        [0x10]: function (val) {
+            nes.apu.chan1_sweep_time = (val & 0b01110000) >> 4;
+            nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
+            nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
 
-            // !!! START FIXING FROM HERE !!! - remove when done
-            // IF
-            case 0x0f: {
-                // Set interrupt flags
-                cpu.iflag.vblank      = (val & 0b00000001) ? true : false; // Bit 0
-                cpu.iflag.lcd_stat    = (val & 0b00000010) ? true : false; // Bit 1
-                cpu.iflag.timer       = (val & 0b00000100) ? true : false; // Bit 2
-                cpu.iflag.serial      = (val & 0b00001000) ? true : false; // Bit 3
-                cpu.iflag.joypad      = (val & 0b00010000) ? true : false; // Bit 4
+            // Use this formula for sweep interval ! 8192 * (sweep/64)
 
-                // Write to 0xff0f
-                this.ioreg [addr] = val | 0b11100000; // Unused bits always read 1
-                break;
-            }
+            mem.ioreg [0x10] = val;
+        },
 
-            // ----- SQUARE CHANEL 1 ----- //
-            // NR10 - sweep reg
-            case 0x10: {
-                nes.apu.chan1_sweep_time = (val & 0b01110000) >> 4;
-                nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
-                nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
+        // NR11 - length and pattern duty
+        [0x11]: function (val) {
+            nes.apu.chan1_pattern_duty = (val & 0b11000000) >> 6;
+            nes.apu.chan1_length_data = val & 0b00111111;
 
-                // Use this formula for sweep interval ! 8192 * (sweep/64)
+            mem.ioreg [0x11] = val | 0b00111111;
+        },
 
-                this.ioreg [addr] = val;
-                break;
-            }
+        // NR12 - volume envelope
+        [0x12]: function (val) {
+            nes.apu.chan1_env_init = 
+            nes.apu.chan1_env_vol = ((val & 0b11110000) >> 4) / 16;
 
-            // NR11 - length and pattern duty
-            case 0x11: {
-                nes.apu.chan1_pattern_duty = (val & 0b11000000) >> 6;
-                nes.apu.chan1_length_data = val & 0b00111111;
+            nes.apu.chan1_env_inc = (val & 0b1000) ? true : false;
+            var sweep = nes.apu.chan1_env_sweep = val & 0b0111;
 
-                this.ioreg [addr] = val | 0b00111111;
-                break;
+            nes.apu.chan1_env_interval = 512 * (sweep/64);
+            nes.apu.chan1_env_on = sweep > 0;
+
+            mem.ioreg [0x12] = val;
+        },
+
+        // NR13 - lower 8 bits of frequency
+        [0x13]: function (val) {
+            nes.apu.chan1_raw_freq &= 0x700; // Preserve top bits
+            nes.apu.chan1_raw_freq |= val;
+        },
+
+        // NR14 - higher 3 bits of frequency
+        [0x14]: function (val) {
+            nes.apu.chan1_counter_select = (val & 0b01000000) ? true : false; 
+
+            nes.apu.chan1_raw_freq &= 0xff; // Preserve bottom bits
+            nes.apu.chan1_raw_freq |= (val & 0b0111) << 8;
+
+            // Restart sound
+            if (val & 0x80) {
+                nes.apu.chan1_env_vol = nes.apu.chan1_env_init;
             }
 
-            // NR12 - volume envelope
-            case 0x12: {
-                nes.apu.chan1_env_init = 
-                nes.apu.chan1_env_vol = ((val & 0b11110000) >> 4) / 16;
+            mem.ioreg [0x14] = val | 0b10111111;
+        },
 
-                nes.apu.chan1_env_inc = (val & 0b1000) ? true : false;
-                var sweep = nes.apu.chan1_env_sweep = val & 0b0111;
+        // NR50 - i need this so pokemon blue dont freeze
+        [0x24]: function (val) {
+            mem.ioreg [0x24] = val;
+        },
 
-                nes.apu.chan1_env_interval = 512 * (sweep/64);
-                nes.apu.chan1_env_on = sweep > 0;
+        // NR52 - Sound enable
+        [0x26]: function (val) {
+            nes.apu.soundOn = (val & 0x80) ? true : false;
 
-                this.ioreg [addr] = val;
-                break;
+            mem.ioreg [0x26] = val | 0b01111111;
+        },
+
+        // LCDC
+        [0x40]: function (val) {
+            var bits = [];
+            var lcdc = nes.ppu.lcdc;
+
+            for (var i = 0; i < 8; i ++) {
+                bits [i] = (val & (1 << i)) ? true : false;
             }
 
-            // NR13 - lower 8 bits of frequency
-            case 0x13: {
-                nes.apu.chan1_raw_freq &= 0x700; // Preserve top bits
-                nes.apu.chan1_raw_freq |= val;
-                break;
+            var lcdWasOn = lcdc.lcd_enabled;
+
+            lcdc.bg_enabled             = bits [0];
+            lcdc.sprites_enabled        = bits [1];
+            lcdc.tall_sprites           = bits [2];
+            lcdc.bg_tilemap_alt         = bits [3];
+            lcdc.signed_addressing      = bits [4];
+            lcdc.window_enabled         = bits [5];
+            lcdc.window_tilemap_alt     = bits [6];
+            lcdc.lcd_enabled            = bits [7];
+
+            // Handle lcd enable changes
+            if (lcdWasOn !== lcdc.lcd_enabled) {
+                if (lcdc.lcd_enabled)
+                    nes.ppu.TurnLcdOn ();
+                else
+                    nes.ppu.TurnLcdOff ();
             }
 
-            // NR14 - higher 3 bits of frequency
-            case 0x14: {
-                nes.apu.chan1_counter_select = (val & 0b01000000) ? true : false; 
+            mem.ioreg [0x40] = val;
+        },
 
-                nes.apu.chan1_raw_freq &= 0xff; // Preserve bottom bits
-                nes.apu.chan1_raw_freq |= (val & 0b0111) << 8;
+        // LCDC status
+        [0x41]: function (val) {
+            var ppu = nes.ppu;
 
-                // Restart sound
-                if (val & 0x80) {
-                    nes.apu.chan1_env_vol = nes.apu.chan1_env_init;
-                }
+            var preStat = mem.ioreg [0x41] & 0b01111000;
 
-                this.ioreg [addr] = val | 0b10111111;
-                break;
+            ppu.stat.coin_irq_on   = (val & 0b01000000) ? true : false; // Bit 6
+            ppu.stat.mode2_irq_on  = (val & 0b00100000) ? true : false; // Bit 5
+            ppu.stat.mode1_irq_on  = (val & 0b00010000) ? true : false; // Bit 4
+            ppu.stat.mode0_irq_on  = (val & 0b00001000) ? true : false; // Bit 3
+
+            // Update stat signal on a change
+            if ((val & 0b01111000) !== preStat)
+                ppu.UpdateStatSignal ();
+
+            // write to 0xff41
+            mem.ioreg [0x41] &= 0b00000111; // Last 3 bits are RO
+            mem.ioreg [0x41] |= (val & 0b11111000) | 0b10000000; // Top bit dont exist
+        },
+
+        // BG scroll y
+        [0x42]: function (val) {
+            nes.ppu.scrolly = mem.ioreg [0x42] = val;
+        },
+        // BG scroll x
+        [0x43]: function (val) {
+            nes.ppu.scrollx = mem.ioreg [0x43] = val;
+        },
+
+        // LY
+        [0x44]: function (val) {
+            // Read only ...
+        },
+
+        // LYC
+        [0x45]: function (val) {
+            nes.ppu.lyc = mem.ioreg [0x45] = val;
+            nes.ppu.CheckCoincidence ();
+            nes.ppu.UpdateStatSignal ();
+        },
+
+        // DMA transfer - TODO: add the proper timings ?? maybe
+        [0x46]: function (val) {
+            var dest = val << 8; // 0xXX00 - 0xXX9F
+
+            for (var i = 0; i < 0xa0; i ++) {
+                // Transfer data to vram
+                var data = cpu.readByte (dest | i);
+                cpu.writeByte (0xfe00 | i, data);
             }
 
-            // NR50 - i need this so pokemon blue dont freeze
-            case 0x24: {
-                this.ioreg [addr] = val;
-                break;
+            mem.ioreg [0x46] = val;
+
+            //cpu.cycles += 160; // DMA takes 160 t cycles ??
+        },
+
+        // Pallete shades
+        [0x47]: function (val) {
+            var palshades = nes.ppu.palshades;
+
+            for (var i = 0; i < 4; i ++) {
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                palshades [i] = (val >> (i << 1)) & 3;
             }
 
-            // NR52 - Sound enable / status ?
-            case 0x26: {
-                nes.apu.soundOn = (val & 0x80) ? true : false;
+            mem.ioreg [0x47] = val;
+        },
 
-                this.ioreg [addr] = val | 0b01111111;
-                break;
+        // Obj 0 - 1 shades
+        [0x48]: function (val) {
+            var objshades = nes.ppu.objshades [0];
+
+            for (var i = 0; i < 4; i ++) {
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                objshades [i] = (val >> (i << 1)) & 3;
             }
 
-            // LCDC
-            case 0x40: {
-                var bits = [];
-                var lcdc = nes.ppu.lcdc;
+            mem.ioreg [0x48] = val;
+        },
+        [0x49]: function (val) {
+            var objshades = nes.ppu.objshades [1];
 
-                for (var i = 0; i < 8; i ++) {
-                    bits [i] = (val & (1 << i)) ? true : false;
-                }
-
-                var lcdWasOn = lcdc.lcd_enabled;
-
-                lcdc.bg_enabled             = bits [0];
-                lcdc.sprites_enabled        = bits [1];
-                lcdc.tall_sprites           = bits [2];
-                lcdc.bg_tilemap_alt         = bits [3];
-                lcdc.signed_addressing      = bits [4];
-                lcdc.window_enabled         = bits [5];
-                lcdc.window_tilemap_alt     = bits [6];
-                lcdc.lcd_enabled            = bits [7];
-
-                // Handle lcd enable changes
-                if (lcdWasOn !== lcdc.lcd_enabled) {
-                    if (lcdc.lcd_enabled)
-                        nes.ppu.TurnLcdOn ();
-                    else
-                        nes.ppu.TurnLcdOff ();
-                }
-
-                this.ioreg [addr] = val;
-                break;
+            for (var i = 0; i < 4; i ++) {
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                objshades [i] = (val >> (i << 1)) & 3;
             }
 
-            // LCDC status
-            case 0x41: {
-                var ppu = nes.ppu;
+            mem.ioreg [0x49] = val;
+        },
 
-                var preStat = this.ioreg [addr] & 0b01111000;
+        // Window Y - Window X
+        [0x4a]: function (val) {
+            nes.ppu.wy = mem.ioreg [0x4a] = val;
+        },
+        [0x4b]: function (val) {
+            nes.ppu.wx = val - 7; // 7px offset
+            mem.ioreg [0x4b] = val;
+        },
 
-                ppu.stat.coin_irq_on   = (val & 0b01000000) ? true : false; // Bit 6
-                ppu.stat.mode2_irq_on  = (val & 0b00100000) ? true : false; // Bit 5
-                ppu.stat.mode1_irq_on  = (val & 0b00010000) ? true : false; // Bit 4
-                ppu.stat.mode0_irq_on  = (val & 0b00001000) ? true : false; // Bit 3
+        // Disable bootrom
+        [0x50]: function (val) {
+            // If unmounted, set to read only !
+            if (!cpu.bootromAtm)
+                return;
 
-                // Update stat signal on a change
-                if ((val & 0b01111000) !== preStat)
-                    ppu.UpdateStatSignal ();
-
-                // write to 0xff41
-                this.ioreg [addr] &= 0b00000111; // Last 3 bits are RO
-                this.ioreg [addr] |= (val & 0b11111000) | 0b10000000;
-                break;
+            if (val & 1) {
+                cpu.bootromAtm = false;
+                console.log ('bootrom disabled.');
             }
 
-            // BG scroll y
-            case 0x42: {
-                nes.ppu.scrolly = this.ioreg [addr] = val;
-                break;
-            }
-            // BG scroll x
-            case 0x43: {
-                nes.ppu.scrollx = this.ioreg [addr] = val;
-                break;
-            }
-
-            // LY
-            case 0x44: {
-                // Read only ...
-                break;
-            }
-
-            // LYC
-            case 0x45: {
-                nes.ppu.lyc = this.ioreg [addr] = val;
-                nes.ppu.CheckCoincidence ();
-                nes.ppu.UpdateStatSignal ();
-                break;
-            }
-
-            // DMA transfer - TODO: add the proper timings ?? maybe
-            case 0x46: {
-                var dest = val << 8; // 0xXX00 - 0xXX9F
-
-                for (var i = 0; i < 0xa0; i ++) {
-                    // Transfer data to vram
-                    var data = cpu.readByte (dest | i);
-                    cpu.writeByte (0xfe00 | i, data);
-                }
-
-                this.ioreg [addr] = val;
-
-                //cpu.cycles += 160; // DMA takes 160 t cycles ??
-                break;
-            }
-
-            // BG shades
-            case 0x47: {
-                var palshades = nes.ppu.palshades;
-
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    palshades [i] = (val >> (i << 1)) & 3;
-                }
-
-                this.ioreg [addr] = val;
-                break;
-            }
-
-            // Obj 0 - 1 shades
-            case 0x48: {
-                var objshades = nes.ppu.objshades [0];
-
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    objshades [i] = (val >> (i << 1)) & 3;
-                }
-
-                this.ioreg [addr] = val;
-                break;
-            }
-            case 0x49: {
-                var objshades = nes.ppu.objshades [1];
-
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    objshades [i] = (val >> (i << 1)) & 3;
-                }
-
-                this.ioreg [addr] = val;
-                break;
-            }
-
-            // Window Y - Window X
-            case 0x4a: {
-                nes.ppu.wy = this.ioreg [addr] = val;
-                break;
-            }
-            case 0x4b: {
-                nes.ppu.wx = val - 7; // 7px offset
-                this.ioreg [addr] = val;
-                break;
-            }
-
-            // Disable bootrom
-            case 0x50: {
-                // If unmounted, set to read only !
-                if (!cpu.bootromAtm)
-                    return;
-
-                if (val & 1) {
-                    cpu.bootromAtm = false;
-                    console.log ('bootrom disabled.');
-                }
-
-                this.ioreg [addr] = val | 0b11111110; // Only 1 bit
-                break;
-            }
-        }
+            mem.ioreg [0x50] = val | 0b11111110; // Only 1 bit
+        },
     };
 
     // =============== //   Basic Functions //
@@ -394,9 +344,10 @@ const Mem = function (nes, cpu) {
         cpu.ienable.Write (0);
         
         // Initialize unused bits in all io registers
-        for (var i = 0; i < 0x80; i ++) {
-            if (this.ioMapped [i] && i !== 0x46) // Don't do a dma pls TwT
-                this.IoWrite (i, 0);
+        for (var i = 0; i < this.ioreg.length; i ++) {
+            var ioonwrite = this.ioonwrite [i];
+            if (ioonwrite && i !== 0x46) // Don't do a dma pls TwT
+                ioonwrite (0);
         }
 
         // this.ioreg [0x44] = 144; // (Stub)
@@ -590,18 +541,21 @@ const Mem = function (nes, cpu) {
             return mem.cartrom [addr];
         }
     };
+
     this.mbcRamRead = {
         // No MBC
         0: function (addr) {
             return mem.cartram [addr];
         }
     };
+
     this.mbcWrite = {
         // No MBC
         0: function (addr, val) {
             // u are a stinky poof
         }
     };
+
     this.mbcRamWrite = {
         // No MBC
         0: function (addr, val) {
@@ -735,7 +689,7 @@ const Mem = function (nes, cpu) {
 
         // LATCH DATA CLOCK //
         if (addr < 0x8000) {
-
+            // what
 
             return val;
         }

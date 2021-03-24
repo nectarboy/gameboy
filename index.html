@@ -173,6 +173,7 @@
 
 						nanaPallete.onchange = function () {
 							gb.SetPallete (palletes [nanaPallete.value]);
+							this.blur (); // It aint annoying now uwu
 						};
 					}
 
@@ -182,7 +183,7 @@
 					gb.SetPallete (palletes [defaultPallete]);
 
 					gb.SetVolume (0.05);
-					gb.EnableSound ();
+					//gb.EnableSound ();
 
 					gb.keyboardEnabled = true;
 
