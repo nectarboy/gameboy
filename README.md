@@ -97,3 +97,6 @@ thank you to everyone mentioned here. whether big or small, you all played a par
 - [lospec.com](https://lospec.com/) (tons of amazing palletes)
 - [this video](https://www.youtube.com/watch?v=RyjL-hckDt0&ab_channel=ParkerSimmonsAnimation) because its cool as fuck
 - [stackoverflow](https://www.youtube.com/watch?v=D6qEOSc1jJc&ab_channel=LilCoop-Topic) jk fuck stackoverflow lmao
+
+## The End
+thank you for checking out my baby boy pollen boy <3
