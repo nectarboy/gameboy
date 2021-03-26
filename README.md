@@ -70,7 +70,7 @@ you can swap the colors from a list of palletes i made, including my own, my sis
 p.s: palletes dont actually change the games pallete, it just customizes the 4 colors the gameboy can use.
 
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
-![pancake](https://github.com/nectarboy/gameboy/blob/main/dmg-acid/10.png?raw=true 'pancake')
+![pancake](https://github.com/nectarboy/gameboy/blob/main/docs/dmg-acid/10.png?raw=true 'pancake')
 ![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
 
 ## Importing Pollen Boy
