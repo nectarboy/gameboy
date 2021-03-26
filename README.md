@@ -3,7 +3,6 @@
 ## Introduction
 hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript,
 and you can [try it online here !](https://nectarboy.github.io/gameboy)
-
 it has most of the gameboys features, such as controls, display, etc
 
 its not meant to be the fastest or most accurate emulator,
@@ -12,7 +11,6 @@ and runs pretty smoothly considering i made this on a thinkpad uwu
 
 with all this, pollen boy is still a wip, and might have some janky bugs somewhere idk,
 so be nice to it <3
-
 if u have any feedback, criticism, or issues to say tell me !
 
 ## Screenshots !
