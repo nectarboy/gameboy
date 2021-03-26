@@ -48,7 +48,7 @@ right now, pollen boy has the basic teensies, but not a lot of q.o.l ones, it go
 - a list of palletes i compiled that you can choose from
 
 ## How To Use
-open the webpage, click <kbd>choose ROM</kbd> and enjoy !
+open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
 the default controls are:
 ```
 D-Pad: Arrow Keys
@@ -62,7 +62,7 @@ Select: Right Shift
 ## Settings
 ### Save Files
 if a game has save support, you can click <kbd>Export</kbd> to download the save on your drive.
-You can then <kbd>Import</kbd> save files onto games to continue your progress !
+you can then <kbd>Import</kbd> save files onto games to continue your progress !
 
 ### Color Palletes
 you can swap the colors from a list of palletes i made, including my own, my sisters (mwah btw), and others i found on the internet. i love this feature so love it too. or else.
@@ -74,7 +74,7 @@ p.s: palletes dont actually change the games pallete, it just customizes the 4 c
 ![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
 
 ## Importing Pollen Boy
-check out `IMPORTING.md`.
+check out `IMPORTING.md` in the root. thought reconsider pls
 
 ## Special Thanks
 thank you to everyone mentioned here. whether big or small, you all played a part to pollen boy, and ily !
