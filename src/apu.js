@@ -8,7 +8,7 @@ const Apu = function (nes) {
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext) ();
 
-    this.buffer = this.ctx.createBuffer (1, 4096, 22000); // 4 channels, 4096 samples, 44khz
+    this.buffer = this.ctx.createBuffer (1, 2048, 22000); // 3 channels, 4096 samples, 44khz
 
     this.gainNode = this.ctx.createGain ();
     this.gainNode.gain.value = 0; // Audio volume
@@ -18,30 +18,27 @@ const Apu = function (nes) {
 
     try {
 
-    this.lastBufferStop = 0;
-    this.StepBuffer = function (cycles) {
-        var freq = this.chan1_getFreq ();
+    this.bufferInd = 0;
 
-        // Buffer channel 1
-        var buffer1 = this.buffer.getChannelData (0);
-        var halfSquarePeriod = (this.buffer.sampleRate / freq) * 0.5;
+    // Create a buffer queue, that we will fill up in za mean time
+    this.bufferQueues = {};
+    this.bufferQueues.length = Math.floor (this.buffer.length / this.buffer.numberOfChannels);
 
-        var i = 0;
+    for (var i = 0; i < this.buffer.numberOfChannels; i ++)
+        this.bufferQueues [i] = new Float32Array (this.bufferQueues.length);
 
-        var ii = this.lastBufferStop;
-        var length = ii + cycles;
-        while (ii < length) {
-            var sample1 = ((i / halfSquarePeriod) & 1) ? this.chan1_env_vol : -this.chan1_env_vol;
+    this.StepBuffer = function () {
 
-            buffer1 [ii] = sample1;;
+        // ---- CHANNEL 1 ---- //
+        var duty = this.duty [this.chan1_pattern_duty] [this.chan1_duty_step];
+        var sample1 = duty ? this.chan1_env_vol : -this.chan1_env_vol;
 
-            i ++;
-            ii ++;
-        }
+        // Mix ...
 
-        this.lastBufferStop = ii;
+        // Badabing badaboom ... ew tht was cringe 
+        this.bufferQueues [0] [this.bufferInd ++] = sample1;
 
-        return ii >= this.buffer.length; // True when buffer is full !
+        return (this.bufferInd >= this.bufferQueues.length); // True when buffer(s) are full !
     };
 
     this.PlayBuffer = function () {
@@ -54,9 +51,16 @@ const Apu = function (nes) {
     };
 
     this.FlushBuffer = function () {
+        for (var i = 0; i < this.buffer.numberOfChannels; i ++) {
+            var channel = this.buffer.getChannelData (i);
+            for (var ii = 0; ii < channel.length; ii ++)
+                channel [ii] = 0;
+        }
+    };
+
+    this.CopyBufferQueues = function () {
         for (var i = 0; i < this.buffer.numberOfChannels; i ++)
-            for (var ii = 0; ii < buffer.length; ii ++)
-                buffer [ii] = 0;
+            this.buffer.copyToChannel (this.bufferQueues [i], i);
     };
 
     }
@@ -69,17 +73,29 @@ const Apu = function (nes) {
     // =============== //   Reset Function //
 
     this.Reset = function () {
-        this.lastBufferStop = 0;
+        this.bufferInd = 0;
+
         this.soundclocks = 0;
+        this.bufferclocks = 0;
 
         // Reset channel 1
         this.chan1_env_vol = 0;
         this.chan1_env_on = false;
         this.chan1_env_interval = 0;
         this.chan1_env_clocks = 0;
+
+        this.chan1_freq_timer = 0;
+        this.chan1_duty_step = 0;
     };
 
     // =============== //   Square Channel 1 //
+
+    this.duty = {
+        0: [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
+        1: [1, 0, 0, 0, 0, 0, 0, 1], // 25%
+        2: [1, 0, 0, 0, 0, 1, 1, 1], // 50%
+        3: [0, 1, 1, 1, 1, 1, 1, 0]  // 75%
+    };
 
     // Sweep register
     this.chan1_sweep_time = 0
@@ -102,12 +118,11 @@ const Apu = function (nes) {
 
     // Frequency + settings ??
     this.chan1_counter_select = false;
+    this.chan1_init_freq = 0;
     this.chan1_raw_freq = 0;
 
-    // Frequency methods
-    this.chan1_getFreq = function () {
-        return 131072 / (2048 - this.chan1_raw_freq);
-    };
+    this.chan1_freq_timer = 0;
+    this.chan1_duty_step = 0;
 
     // =============== //   Square Channel 2 //
 
@@ -116,17 +131,31 @@ const Apu = function (nes) {
     this.soundclocks = 0;
     this.soundinterval = 8192; // 4194304 / 512
 
+    this.bufferclocks = 0;
+    this.bufferinterval = Math.ceil (nes.cpu.cyclespersec / this.buffer.sampleRate);
+
     this.soundOn = false;
 
-    this.SoundController = function (cycled, cycledThisFrame) {
+    this.SoundController = function (cycled) {
         if (!this.soundOn)
             return;
 
-        this.soundclocks += cycled;
+        // ---- FREQUENCY TIMERS ---- //
+        // Channel 1
+        this.chan1_freq_timer -= cycled;
+        if (this.chan1_freq_timer <= 0) {
+            this.chan1_freq_timer += (2048 - this.chan1_raw_freq) * 4;
 
+            this.chan1_duty_step ++;
+            this.chan1_duty_step &= 7;
+        }
+
+        // Every 512 hz ...
+        this.soundclocks += cycled;
         if (this.soundclocks >= this.soundinterval) {
-            // ---- CHANNEL 1 ---- //
-            // Update envelope
+
+            // ---- UPDATE ENVELOPE ---- //
+            // Channel 1
             this.chan1_env_clocks ++;
             if (this.chan1_env_clocks >= this.chan1_env_interval) {
                 if (this.chan1_env_on) {
@@ -147,14 +176,22 @@ const Apu = function (nes) {
                 this.chan1_env_clocks = 0;
             }
 
-            // Filling the buffer
-            var bufferFull = this.StepBuffer (512);
-            if (bufferFull) {
-                this.lastBufferStop = 0;
+            this.soundclocks -= this.soundinterval;
+
+        }
+
+        // Filling the buffer
+        this.bufferclocks += cycled;
+        if (this.bufferclocks >= this.bufferinterval) {
+            // Step ...
+            if (this.StepBuffer ()) {
+                this.bufferInd = 0;
+
+                this.CopyBufferQueues ();
                 this.PlayBuffer ();
             }
 
-            this.soundclocks -= this.soundinterval;
+            this.bufferclocks -= this.bufferinterval;
         }
     };
 

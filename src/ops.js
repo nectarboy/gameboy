@@ -421,8 +421,8 @@ const Ops = function (cpu) {
 
         // HALT - WIP
         HALT () {
-            var IF = cpu.readByte (0xff0f); // Iflags
-            var IE = cpu.readByte (0xffff); // Ienables
+            var IF = cpu.mem.ioreg [0x0f];  // Iflags
+            var IE = cpu.mem.iereg;   // Ienables
 
             // Exit hell if an interrupt is valid to be serviced
             if ((IF & IE) & 0b00011111) {
@@ -430,7 +430,8 @@ const Ops = function (cpu) {
             }
              // If we cannot exit hell, stay in hell.
             else {
-                cpu.pc = (cpu.pc - 1) & 0xffff;
+                cpu.pc -= 1;
+                cpu.pc &= 0xffff;
             }
 
             cpu.cycles += 4;

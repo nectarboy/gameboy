@@ -10,9 +10,6 @@ This is a lil tedious so might change to modules, but here goes !
 <script src='apu.js'></script>
 <script src='joypad.js'></script>
 <script src='main.js'></script>
-
-<!-- Don't forget this if you wanna download saves -->
-<script src='filesaver.js'></script>
 ```
 
 ```Javascript

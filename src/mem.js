@@ -152,8 +152,6 @@ const Mem = function (nes, cpu) {
                 nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
                 nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
 
-                // Use this formula for sweep interval ! 8192 * (sweep/64)
-
                 this.ioreg [addr] = val;
                 break;
             }
@@ -184,8 +182,9 @@ const Mem = function (nes, cpu) {
 
             // NR13 - lower 8 bits of frequency
             case 0x13: {
-                nes.apu.chan1_raw_freq &= 0x700; // Preserve top bits
-                nes.apu.chan1_raw_freq |= val;
+                nes.apu.chan1_init_freq &= 0x700; // Preserve top bits
+                nes.apu.chan1_raw_freq =
+                    (nes.apu.chan1_init_freq |= val);
                 break;
             }
 
@@ -193,8 +192,9 @@ const Mem = function (nes, cpu) {
             case 0x14: {
                 nes.apu.chan1_counter_select = (val & 0b01000000) ? true : false; 
 
-                nes.apu.chan1_raw_freq &= 0xff; // Preserve bottom bits
-                nes.apu.chan1_raw_freq |= (val & 0b0111) << 8;
+                nes.apu.chan1_init_freq &= 0xff; // Preserve bottom bits
+                nes.apu.chan1_raw_freq = 
+                    (nes.apu.chan1_init_freq |= (val & 0b0111) << 8);
 
                 // Restart sound
                 if (val & 0x80) {
@@ -280,12 +280,6 @@ const Mem = function (nes, cpu) {
             // BG scroll x
             case 0x43: {
                 nes.ppu.scrollx = this.ioreg [addr] = val;
-                break;
-            }
-
-            // LY
-            case 0x44: {
-                // Read only ...
                 break;
             }
 

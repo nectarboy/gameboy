@@ -187,7 +187,9 @@ const Ppu = function (nes) {
         this.statsignal = false;
 
         this.WriteMode (0); // When LCD disabled, stat mode is 0
+
         this.ClearImg (); // Clear screen on frontend
+        this.RenderImg ();
     };
 
     this.TurnLcdOn = function () {

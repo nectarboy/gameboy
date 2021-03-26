@@ -34,9 +34,9 @@ const Cpu = function (nes) {
     };
     this.pushSP = function (val) {
         this.writeSP (this.sp - 1);
-        cpu.writeByte (this.sp, (val & 0xff00) >> 8); // Hi byte
+        this.writeByte (this.sp, (val & 0xff00) >> 8); // Hi byte
         this.writeSP (this.sp - 1);
-        cpu.writeByte (this.sp, val & 0xff); // Lo byte
+        this.writeByte (this.sp, val & 0xff); // Lo byte
 
         return val & 0xffff; // Mask to 16bit int
     };
@@ -236,7 +236,7 @@ this.CheckInterrupts = function () {
     // Clock tick functions
     this.DivTick = function () {
         return this.div // Increment div ...
-            = cpu.mem.ioreg [0x04] += 1; // ... while setting div ioreg
+            = this.mem.ioreg [0x04] += 1; // ... while setting div ioreg
     };
 
     this.TimaTick = function () {
@@ -250,7 +250,7 @@ this.CheckInterrupts = function () {
             this.iflag.SetTimer (); // Request timer interrupt
         }
 
-        return cpu.mem.ioreg [0x05] = this.tima; // Set tima ioreg
+        return this.mem.ioreg [0x05] = this.tima; // Set tima ioreg
     };
 
     // =============== //   CPU Timings //
@@ -355,6 +355,7 @@ this.CheckInterrupts = function () {
 
             if (mem.ioMapped [addr])
                 return mem.ioreg [addr];
+            return 0xff;
         }
         // HIGH
         if (addr < 0xffff) {
@@ -363,6 +364,7 @@ this.CheckInterrupts = function () {
         // INTERRUPT
         return mem.iereg;
     };
+    
     this.writeByte = function (addr, val) {
         var mem = this.mem;
 
@@ -446,8 +448,8 @@ this.CheckInterrupts = function () {
     };
 
     this.write16 = function (addr, val) {
-        cpu.writeByte (addr, (val & 0xff)); // Get low byte
-        cpu.writeByte (addr + 1, ((val & 0xff00) >> 8)); //  Get high byte
+        this.writeByte (addr, (val & 0xff)); // Get low byte
+        this.writeByte (addr + 1, ((val & 0xff00) >> 8)); //  Get high byte
 
         return val & 0xffff;
     };
