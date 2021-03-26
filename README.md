@@ -4,18 +4,16 @@
 hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript,
 and you can [try it online here !](https://nectarboy.github.io/gameboy)
 
-it has most of the gameboys features, such as controls, display, and sound (wHICH IS A BIG WIP BTW !).
-and it has some other lil features like save file support, and custom palletes !
-(you cant make custom palletes ... *yet*)
+it has most of the gameboys features, such as controls, display, etc
 
 its not meant to be the fastest or most accurate emulator,
-but it passes the basic tests, runs most games i tried (except for that rc car racing game :(( ),
-and it runs pretty smoothly considering i made this on a thinkpad uwu
+but it passes the basic tests, runs most games i tried,
+and runs pretty smoothly considering i made this on a thinkpad uwu
 
-despite all this, pollen boy is still a wip, and might have some janky bugs somewhere idk,
+with all this, pollen boy is still a wip, and might have some janky bugs somewhere idk,
 so be nice to it <3
 
-and if u have any feedback, criticism, or issues to say tell me !
+if u have any feedback, criticism, or issues to say tell me !
 
 ## Screenshots !
 i love these screenshots so now you must look at them
