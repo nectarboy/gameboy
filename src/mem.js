@@ -56,7 +56,7 @@ const Mem = function (nes, cpu) {
         // 0
         0x00, 0x04, 0x05, 0x06, 0x07, 0x0f,
         // 1
-        0x10, 0x11, 0x12, 0x13, 0x14,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x16, 0x17, 0x18, 0x19,
         // 2
         0x24, 0x26,
         // 4
@@ -130,7 +130,6 @@ const Mem = function (nes, cpu) {
                 break;
             }
 
-            // !!! START FIXING FROM HERE !!! - remove when done
             // IF
             case 0x0f: {
                 // Set interrupt flags
@@ -148,7 +147,8 @@ const Mem = function (nes, cpu) {
             // ----- SQUARE CHANEL 1 ----- //
             // NR10 - sweep reg
             case 0x10: {
-                nes.apu.chan1_sweep_time = (val & 0b01110000) >> 4;
+                nes.apu.chan1_sweep_time = 
+                    cpu.cyclespersec * ((val >> 4) / 128);
                 nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
                 nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
 
@@ -158,7 +158,7 @@ const Mem = function (nes, cpu) {
 
             // NR11 - length and pattern duty
             case 0x11: {
-                nes.apu.chan1_pattern_duty = (val & 0b11000000) >> 6;
+                nes.apu.chan1_pattern_duty = val >> 6;
                 nes.apu.chan1_length_data = val & 0b00111111;
 
                 this.ioreg [addr] = val | 0b00111111;
@@ -168,7 +168,7 @@ const Mem = function (nes, cpu) {
             // NR12 - volume envelope
             case 0x12: {
                 nes.apu.chan1_env_init = 
-                nes.apu.chan1_env_vol = ((val & 0b11110000) >> 4) / 16;
+                nes.apu.chan1_env_vol = (val >> 4) / 16;
 
                 nes.apu.chan1_env_inc = (val & 0b1000) ? true : false;
                 var sweep = nes.apu.chan1_env_sweep = val & 0b0111;
@@ -199,6 +199,56 @@ const Mem = function (nes, cpu) {
                 // Restart sound
                 if (val & 0x80) {
                     nes.apu.chan1_env_vol = nes.apu.chan1_env_init;
+                }
+
+                this.ioreg [addr] = val | 0b10111111;
+                break;
+            }
+
+            // ---- SQUARE CHANNEL 2 ---- //
+            // NR21 - length and pattern duty
+            case 0x16: {
+                nes.apu.chan2_pattern_duty = val >> 6;
+                nes.apu.chan2_length_data = val & 0b00111111;
+
+                this.ioreg [addr] = val | 0b00111111;
+                break;
+            }
+
+            // NR22 - volume envelope
+            case 0x17: {
+                nes.apu.chan2_env_init = 
+                nes.apu.chan2_env_vol = (val >> 4) / 16;
+
+                nes.apu.chan2_env_inc = (val & 0b1000) ? true : false;
+                var sweep = nes.apu.chan2_env_sweep = val & 0b0111;
+
+                nes.apu.chan2_env_interval = 512 * (sweep/64);
+                nes.apu.chan2_env_on = sweep > 0;
+
+                this.ioreg [addr] = val;
+                break;
+            }
+
+            // NR23 - lower 8 bits of frequency
+            case 0x18: {
+                nes.apu.chan2_init_freq &= 0x700; // Preserve top bits
+                nes.apu.chan2_raw_freq =
+                    (nes.apu.chan2_init_freq |= val);
+                break;
+            }
+
+            // NR24 - higher 3 bits of frequency
+            case 0x19: {
+                nes.apu.chan2_counter_select = (val & 0b01000000) ? true : false; 
+
+                nes.apu.chan2_init_freq &= 0xff; // Preserve bottom bits
+                nes.apu.chan2_raw_freq = 
+                    (nes.apu.chan2_init_freq |= (val & 0b0111) << 8);
+
+                // Restart sound
+                if (val & 0x80) {
+                    nes.apu.chan2_env_vol = nes.apu.chan2_env_init;
                 }
 
                 this.ioreg [addr] = val | 0b10111111;

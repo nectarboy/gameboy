@@ -6,17 +6,17 @@ const Apu = function (nes) {
 
     // =============== //   Audio Context //
 
+    try { // If any errors are caught, then we use a dummy fallback.
+
     this.ctx = new (window.AudioContext || window.webkitAudioContext) ();
 
-    this.buffer = this.ctx.createBuffer (1, 2048, 22000); // 3 channels, 4096 samples, 44khz
+    this.buffer = this.ctx.createBuffer (1, 8192, 44000); // 3 channels, 4096 samples, 44khz
 
     this.gainNode = this.ctx.createGain ();
     this.gainNode.gain.value = 0; // Audio volume
     this.gainNode.connect (this.ctx.destination);
 
     // =============== //   Buffering //
-
-    try {
 
     this.bufferInd = 0;
 
@@ -28,17 +28,25 @@ const Apu = function (nes) {
         this.bufferQueues [i] = new Float32Array (this.bufferQueues.length);
 
     this.StepBuffer = function () {
-
-        // ---- CHANNEL 1 ---- //
-        var duty = this.duty [this.chan1_pattern_duty] [this.chan1_duty_step];
-        var sample1 = duty ? this.chan1_env_vol : -this.chan1_env_vol;
-
-        // Mix ...
-
-        // Badabing badaboom ... ew tht was cringe 
-        this.bufferQueues [0] [this.bufferInd ++] = sample1;
+        var sample = this.GetSample ();
+        this.bufferQueues [0] [this.bufferInd ++] = sample;
 
         return (this.bufferInd >= this.bufferQueues.length); // True when buffer(s) are full !
+    };
+
+    this.GetSample = function () {
+        // Channel 1
+        var sample1 =
+            this.duty [this.chan1_pattern_duty] [this.chan1_duty_step]
+            ? this.chan1_env_vol : -this.chan1_env_vol;
+
+        // Channel 2
+        var sample2 =
+            this.duty [this.chan2_pattern_duty] [this.chan2_duty_step]
+            ? this.chan2_env_vol : -this.chan2_env_vol;
+
+        // Mix ...
+        return (sample1 + sample2) / 2;
     };
 
     this.PlayBuffer = function () {
@@ -64,11 +72,21 @@ const Apu = function (nes) {
     };
 
     }
+    // The dummy fallback
     catch (e) {
         console.log ('audio not supported. using fallback !');
-        this.StepBuffer = this.PlayBuffer = this.FlushBuffer =
+        this.bufferInd = 0;
+        this.StepBuffer = this.PlayBuffer = this.FlushBuffer = this.CopyBufferQueues =
             function () {};
     }
+
+    // Duty patterns
+    this.duty = {
+        0: [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
+        1: [1, 0, 0, 0, 0, 0, 0, 1], // 25%
+        2: [1, 0, 0, 0, 0, 1, 1, 1], // 50%
+        3: [0, 1, 1, 1, 1, 1, 1, 0]  // 75%
+    };
 
     // =============== //   Reset Function //
 
@@ -79,23 +97,21 @@ const Apu = function (nes) {
         this.bufferclocks = 0;
 
         // Reset channel 1
-        this.chan1_env_vol = 0;
-        this.chan1_env_on = false;
         this.chan1_env_interval = 0;
         this.chan1_env_clocks = 0;
 
         this.chan1_freq_timer = 0;
         this.chan1_duty_step = 0;
+
+        // Reset channel 2
+        this.chan2_env_interval = 0;
+        this.chan2_env_clocks = 0;
+
+        this.chan2_freq_timer = 0;
+        this.chan2_duty_step = 0;
     };
 
     // =============== //   Square Channel 1 //
-
-    this.duty = {
-        0: [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
-        1: [1, 0, 0, 0, 0, 0, 0, 1], // 25%
-        2: [1, 0, 0, 0, 0, 1, 1, 1], // 50%
-        3: [0, 1, 1, 1, 1, 1, 1, 0]  // 75%
-    };
 
     // Sweep register
     this.chan1_sweep_time = 0
@@ -126,6 +142,28 @@ const Apu = function (nes) {
 
     // =============== //   Square Channel 2 //
 
+    // Length and pattern duty
+    this.chan2_pattern_duty = 0;
+    this.chan2_length_data = 0;
+
+    // Volume envelope
+    this.chan2_env_init = 0;
+    this.chan2_env_inc = false;
+    this.chan2_env_sweep = 0;
+    this.chan2_env_clocks = 0;
+
+    this.chan2_env_vol = 0;
+    this.chan2_env_on = false;
+    this.chan2_env_interval = 0;
+
+    // Frequency + settings ??
+    this.chan2_counter_select = false;
+    this.chan2_init_freq = 0;
+    this.chan2_raw_freq = 0;
+
+    this.chan2_freq_timer = 0;
+    this.chan2_duty_step = 0;
+
     // =============== //   Sound Controller //
 
     this.soundclocks = 0;
@@ -148,6 +186,14 @@ const Apu = function (nes) {
 
             this.chan1_duty_step ++;
             this.chan1_duty_step &= 7;
+        }
+        // Channel 2
+        this.chan2_freq_timer -= cycled;
+        if (this.chan2_freq_timer <= 0) {
+            this.chan2_freq_timer += (2048 - this.chan2_raw_freq) * 4;
+
+            this.chan2_duty_step ++;
+            this.chan2_duty_step &= 7;
         }
 
         // Every 512 hz ...
@@ -174,6 +220,27 @@ const Apu = function (nes) {
                 }
 
                 this.chan1_env_clocks = 0;
+            }
+
+            // Channel 2
+            this.chan2_env_clocks ++;
+            if (this.chan2_env_clocks >= this.chan2_env_interval) {
+                if (this.chan2_env_on) {
+                    // Inc
+                    if (this.chan2_env_inc) {
+                        this.chan2_env_vol += 1/15;
+                        if (this.chan2_env_vol > 1)
+                            this.chan2_env_vol = 1;
+                    }
+                    // Dec
+                    else {
+                        this.chan2_env_vol -= (1/15);
+                        if (this.chan2_env_vol < 0)
+                            this.chan2_env_vol = 0;
+                    }
+                }
+
+                this.chan2_env_clocks = 0;
             }
 
             this.soundclocks -= this.soundinterval;

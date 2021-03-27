@@ -295,13 +295,13 @@
 				        fr.onload = function () {
 							var rom = new Uint8Array (fr.result);
 
-				            //try {
+				            try {
 				            	gb.InsertRom (rom); // This may throw an error
 				            	Start ();
-				            //}
-				            //catch (e) {
-				            //	SetStatMsg (e);
-				            //}
+				            }
+				            catch (e) {
+				            	SetStatMsg (e);
+				            }
 				        };
 
 				        fr.readAsArrayBuffer (file);
