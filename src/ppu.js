@@ -109,6 +109,8 @@ const Ppu = function (nes) {
         this.ctx = nes.canvas.getContext ('2d');
         this.img = this.ctx.createImageData (gbwidth, gbheight);
 
+        this.ctx.globalAlpha = nes.alphaBlend;
+
         this.ClearImg ();
     };
 
@@ -130,6 +132,17 @@ const Ppu = function (nes) {
     this.RenderImg = function () {
         this.ctx.putImageData (this.img, 0, 0);
     };
+
+    // This has image interpolation - like a real GB :D
+    this.RenderImgSmooth = function () {
+        var tmpCanvas = document.createElement ('canvas');
+        tmpCtx = tmpCanvas.getContext ('2d');
+        tmpCtx.putImageData (this.img, 0, 0);
+
+        this.ctx.drawImage (tmpCanvas, 0, 0);
+    };
+
+    this.render_img_func = this.RenderImg;
 
     // Deprecated !
     this.RenderLoop = function () {
@@ -336,7 +349,7 @@ const Ppu = function (nes) {
                         cpu.iflag.SetVblank (); // Request vblank irq !
                         this.WriteMode (1);
 
-                        this.RenderImg (); // Draw picture ! (in v-sync uwu)
+                        this.render_img_func.bind (this) (); // Draw picture ! (in v-sync uwu)
                     }
                     else
                         this.WriteMode (2); // Reset

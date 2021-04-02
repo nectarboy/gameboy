@@ -41,11 +41,6 @@ const Mem = function (nes, cpu) {
 
     // =============== //   IO Registers //
 
-    /* TODO
-     * rework this so theres an object containing all mapped registers ?
-     * make a function that does stuff on write, but its a switch statement 
-     */
-
     /* io_mapped_array
      * this array contains all io registers that are
      * currently mapped. it will then be processed into
@@ -74,6 +69,7 @@ const Mem = function (nes, cpu) {
     for (var i = 0; i < io_mapped_array.length; i ++)
         this.ioMapped [io_mapped_array [i]] = true;
 
+    // Io register write function
     this.IoWrite = function (addr, val) {
         addr &= 0xff;
 
@@ -147,10 +143,10 @@ const Mem = function (nes, cpu) {
             // ----- SQUARE CHANEL 1 ----- //
             // NR10 - sweep reg
             case 0x10: {
-                nes.apu.chan1_sweep_time = 
-                    cpu.cyclespersec * ((val >> 4) / 128);
+                nes.apu.chan1_sweep_time = 512 * ((val >> 4) / 128);
+
                 nes.apu.chan1_sweep_dec = (val & 0b1000) ? true : false;
-                nes.apu.chan1_sweep_shift = (val & 0b0111) / 128;
+                nes.apu.chan1_sweep_num = val & 0b0111;
 
                 this.ioreg [addr] = val;
                 break;
@@ -159,7 +155,7 @@ const Mem = function (nes, cpu) {
             // NR11 - length and pattern duty
             case 0x11: {
                 nes.apu.chan1_pattern_duty = val >> 6;
-                nes.apu.chan1_length_data = val & 0b00111111;
+                nes.apu.chan1_length = 64 - (val & 0b00111111);
 
                 this.ioreg [addr] = val | 0b00111111;
                 break;
@@ -168,7 +164,8 @@ const Mem = function (nes, cpu) {
             // NR12 - volume envelope
             case 0x12: {
                 nes.apu.chan1_env_init = 
-                nes.apu.chan1_env_vol = (val >> 4) / 16;
+                nes.apu.chan1_env_vol = ((val >> 4) / 15);
+                nes.apu.chan1_env_vol *= nes.apu.chan1_on;
 
                 nes.apu.chan1_env_inc = (val & 0b1000) ? true : false;
                 var sweep = nes.apu.chan1_env_sweep = val & 0b0111;
@@ -196,10 +193,9 @@ const Mem = function (nes, cpu) {
                 nes.apu.chan1_raw_freq = 
                     (nes.apu.chan1_init_freq |= (val & 0b0111) << 8);
 
-                // Restart sound
-                if (val & 0x80) {
-                    nes.apu.chan1_env_vol = nes.apu.chan1_env_init;
-                }
+                // Trigger event
+                if (val & 0x80)
+                    nes.apu.chan1Trigger ();
 
                 this.ioreg [addr] = val | 0b10111111;
                 break;
@@ -209,7 +205,7 @@ const Mem = function (nes, cpu) {
             // NR21 - length and pattern duty
             case 0x16: {
                 nes.apu.chan2_pattern_duty = val >> 6;
-                nes.apu.chan2_length_data = val & 0b00111111;
+                nes.apu.chan2_length = 64 - (val & 0b00111111);
 
                 this.ioreg [addr] = val | 0b00111111;
                 break;
@@ -218,7 +214,7 @@ const Mem = function (nes, cpu) {
             // NR22 - volume envelope
             case 0x17: {
                 nes.apu.chan2_env_init = 
-                nes.apu.chan2_env_vol = (val >> 4) / 16;
+                nes.apu.chan2_env_vol = (val >> 4) / 15;
 
                 nes.apu.chan2_env_inc = (val & 0b1000) ? true : false;
                 var sweep = nes.apu.chan2_env_sweep = val & 0b0111;
@@ -232,9 +228,8 @@ const Mem = function (nes, cpu) {
 
             // NR23 - lower 8 bits of frequency
             case 0x18: {
-                nes.apu.chan2_init_freq &= 0x700; // Preserve top bits
-                nes.apu.chan2_raw_freq =
-                    (nes.apu.chan2_init_freq |= val);
+                nes.apu.chan2_raw_freq &= 0x700; // Preserve top bits
+                nes.apu.chan2_raw_freq |= val;
                 break;
             }
 
@@ -242,14 +237,12 @@ const Mem = function (nes, cpu) {
             case 0x19: {
                 nes.apu.chan2_counter_select = (val & 0b01000000) ? true : false; 
 
-                nes.apu.chan2_init_freq &= 0xff; // Preserve bottom bits
-                nes.apu.chan2_raw_freq = 
-                    (nes.apu.chan2_init_freq |= (val & 0b0111) << 8);
+                nes.apu.chan2_raw_freq &= 0xff; // Preserve bottom bits
+                nes.apu.chan2_raw_freq |= (val & 0b0111) << 8;
 
-                // Restart sound
-                if (val & 0x80) {
-                    nes.apu.chan2_env_vol = nes.apu.chan2_env_init;
-                }
+                // Trigger event
+                if (val & 0x80)
+                    nes.apu.chan2Trigger ();
 
                 this.ioreg [addr] = val | 0b10111111;
                 break;
@@ -497,7 +490,7 @@ const Mem = function (nes, cpu) {
                 this.maxrombanks = 96;
             }
             else
-                throw `invalid rom banking ${romSize.toString (16)} !`;
+                throw `invalid rom header ! (rom size)`;
         }
         // Official sizes B)
         else {
@@ -516,7 +509,7 @@ const Mem = function (nes, cpu) {
             else if (ramSize === 0x0)
                 this.maxrambanks = 0;
             else {
-                throw `invalid ram banking ${ramSize.toString (16)} !`;
+                throw `invalid rom header ! (ram size)`;
             }
         }
 
@@ -581,7 +574,7 @@ const Mem = function (nes, cpu) {
                 break;
 
             default:
-                throw `unsupported rom mbc ${rom [0x147].toString (16)} !`;
+                throw `unsupported rom type :(`;
         }
     };
 

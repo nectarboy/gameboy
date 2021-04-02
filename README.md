@@ -85,6 +85,7 @@ thank you to everyone mentioned here. whether big or small, you all played a par
 - [optix' GBEDG](https://hacktix.github.io/GBEDG/) (rlly good)
 - [RGBDS instruction summary](https://rgbds.gbdev.io/docs/v0.4.1/gbz80.7)
 - [wheremyfoodat's SM83 decoding reference](https://cdn.discordapp.com/attachments/465586075830845475/742438340078469150/SM83_decoding.pdf) "fuck that guy"
+- [nightshade256's audio guide](https://nightshade256.github.io/2021/03/27/gb-sound-emulation.html) that shit helped out a lot. a lot.
 
 ### Life Savers
 - [wheremyfoodat's peachy logs](https://github.com/wheremyfoodat/Gameboy-logs) walked so i could run

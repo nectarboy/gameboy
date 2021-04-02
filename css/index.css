@@ -238,9 +238,9 @@ html, body {
 	/*font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;*/
 
 	/* Style */
-	color: #DEC69C;
+	color: #f7bef7;
 	font-size: 16px;
-	text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+	text-shadow: -1.5px 0 black, 0 1.5px black, 1px 0 black, 0 -1.5px black;
 
 	bottom: 0;
 	left: 0;

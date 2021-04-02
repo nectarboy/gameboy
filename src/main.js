@@ -17,7 +17,25 @@ const Gameboy = function () {
     this.controllerEnabled = false;
 
     this.bootromEnabled = false;
-    this.pitchShift = 0;
+
+    // Audio pitch shift
+    this.setPitchSift = function (shift) {
+        this.apu.pitchShift = shift;
+    };
+
+    // Alpha blend
+    this.alphaBlend = 1;
+    this.SetAlphaBlend = function (n) {
+        this.alphaBlend = this.ppu.ctx.globalAlpha = n;
+    };
+
+    this.EnableAlphaBlend = function () {
+        this.ppu.render_img_func = this.ppu.RenderImgSmooth;
+    };
+
+    this.DisableAlphaBlend = function () {
+        this.ppu.render_img_func = this.ppu.RenderImg;
+    };
 
     // Throttle / FPS
     this.fps = 0;
@@ -90,9 +108,9 @@ const Gameboy = function () {
 
     this.ToggleSoundEnable = function () {
         if (!this.soundenabled)
-            this.Stop ();
+            this.EnableSound ();
         else
-            this.Start ();
+            this.DisableSound ();
 
         return this.soundenabled;
     };
@@ -113,9 +131,11 @@ const Gameboy = function () {
     // =============== //   Functions //
 
     this.Start = function () {
+        if (this.cpu.crashed)
+            throw 'sorry but you crashed :c<br>reset to start !';
+
         this.Stop ();
 
-        this.paused = false;
         console.log (
             'started execution.' // Nice lil border :3
             + '\n/---------------/'
@@ -126,6 +146,8 @@ const Gameboy = function () {
         // this.ppu.RenderLoop (); // This causes screen tearing 
         this.joypad.keyboardAPI.Start ();
         this.UnSTFU ();
+
+        this.paused = false;
     };
 
     this.Stop = function () {
@@ -140,6 +162,9 @@ const Gameboy = function () {
 
     // A default pause toggle function
     this.TogglePause = function () {
+        if (this.cpu.crashed)
+            throw 'sorry but you crashed :c<br>reset to start !';
+
         if (!this.paused)
             this.Stop ();
         else

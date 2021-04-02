@@ -15,6 +15,8 @@ const Cpu = function (nes) {
     this.bootromAtm = false;
     this.hasRom = false;
 
+    this.crashed = false;
+
     this.lowpower = false;
     this.halted = false;
 
@@ -514,6 +516,8 @@ this.CheckInterrupts = function () {
 
     // Reset
     this.Reset = function () {
+        this.crashed = false;
+
         // Reset flags
         this.flag.zero =
         this.flag.sub =
@@ -582,18 +586,13 @@ this.CheckInterrupts = function () {
 
     // =============== //   Debugging //
 
-    this.Panic = function (err) {
-        // Program cannot progress any further now
-        // TODO: make a seperate 'crashed' bool
-        // cuz this dont work with Reset ()
-        this.hasRom = false;
-        this.bootromAtm = false;
-
+    this.Panic = function (e) {
         // Stop everything
         nes.Stop ();
+        this.crashed = true;
 
-        alert (err);
-        throw err;
+        alert (e);
+        throw e;
     };
 
 };

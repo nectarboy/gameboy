@@ -65,17 +65,21 @@
 
 					<p class='subtit'>Save files</p>
 
-					<label id='nanaexportsave' class='smallbutton'>Export</label>
-					<input id='nanaimportsave' type='file' accept='.sav' class='hide'>
-					<label for='nanaimportsave' class='smallbutton'>Import</label>
+					<div>
+						<label id='nanaexportsave' class='smallbutton'>Export</label>
+						<input id='nanaimportsave' type='file' accept='.sav' class='hide'>
+						<label for='nanaimportsave' class='smallbutton'>Import</label>
+					</div>
 
 					<p class='subtit'>Color palletes</p>
 
-					<form>
-						<label for='palletelist' class='smalltxt'>Pick a pallete !</label>
-						<select name='palletelist' id='nanapallete'>
-						</select>
-					</form>
+					<div>
+						<form>
+							<label for='palletelist' class='smalltxt'>Pick a pallete !</label>
+							<select name='palletelist' id='nanapallete'>
+							</select>
+						</form>
+					</div>
 
 				</div>
 				</div>
@@ -185,6 +189,9 @@
 					gb.SetVolume (0.05);
 					gb.EnableSound ();
 
+					gb.DisableAlphaBlend ();
+					gb.SetAlphaBlend (0.7);
+
 					gb.keyboardEnabled = true;
 
 					// Images
@@ -200,13 +207,15 @@
 
 					// Status text
 					var statTimeout = null;
-					var statFadeMs = 1300;
 
-					function SetStatMsg (msg) {
+					const statFadeMs = 1300;
+					const longStatFadeMs = 1800;
+
+					function SetStatMsg (msg, fade=statFadeMs) {
 						nanaStat.innerHTML = msg;
 
 						clearTimeout (statTimeout);
-						statTimeout = setTimeout (ClearStatMsg, statFadeMs);
+						statTimeout = setTimeout (ClearStatMsg, fade);
 					}
 
 					function ClearStatMsg () {
@@ -220,15 +229,20 @@
 						if (!gb.cpu.hasRom)
 							return;
 
-						var paused = gb.TogglePause ();
+						try {
+							var paused = gb.TogglePause ();
 
-						if (paused) {
-							SetButtonImg (nanaPause, images.play);
-							SetStatMsg ('paused !');
+							if (paused) {
+								SetButtonImg (nanaPause, images.play);
+								SetStatMsg ('paused !');
+							}
+							else {
+								SetButtonImg (nanaPause, images.pause);
+								SetStatMsg ('');
+							}
 						}
-						else {
-							SetButtonImg (nanaPause, images.pause);
-							SetStatMsg ('');
+						catch (e) {
+							SetStatMsg (e, longStatFadeMs);
 						}
 					};
 
@@ -239,8 +253,15 @@
 						if (!confirm ('are you sure you wanna reset ?'))
 							return;
 
+						if (gb.cpu.crashed) {
+							SetButtonImg (nanaPause, images.play);
+						}
+
 						gb.Reset ();
+
 						SetStatMsg ('reset !');
+
+						// This helps with crashes
 					};
 
 					// Save importing
@@ -257,7 +278,7 @@
 					            SetStatMsg ('save loaded :)');
 				            }
 				            catch (e) {
-				            	SetStatMsg (e);
+				            	SetStatMsg (e, longStatFadeMs);
 				            }
 				        };
 
@@ -282,7 +303,7 @@
 							saveAs (blob, lastreadFilename + '.sav');
 						}
 						catch (e) {
-							SetStatMsg (e);
+							SetStatMsg (e, longStatFadeMs);
 						}
 					};
 
@@ -300,7 +321,7 @@
 				            	Start ();
 				            }
 				            catch (e) {
-				            	SetStatMsg (e);
+				            	SetStatMsg (e, longStatFadeMs);
 				            }
 				        };
 
