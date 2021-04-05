@@ -422,18 +422,15 @@ const Ops = function (cpu) {
         // HALT - WIP
         HALT () {
             var IF = cpu.mem.ioreg [0x0f];  // Iflags
-            var IE = cpu.mem.iereg;         // Ienables
+            var IE = cpu.mem.iereg;   // Ienables
 
             // Exit hell if an interrupt is valid to be serviced
-            if (IF & IE & 0x1f) {
-                cpu.haltbugAtm = !(cpu.halted || cpu.ime);
-                cpu.halted = false;
+            if ((IF & IE) & 0b00011111) {
+                // ... halt bug here ?? maybe later fuck that shit
             }
              // If we cannot exit hell, stay in hell.
             else {
-                cpu.halted = true;
-
-                cpu.pc --;
+                cpu.pc -= 1;
                 cpu.pc &= 0xffff;
             }
 
@@ -1281,9 +1278,17 @@ const Ops = function (cpu) {
         return chunk;
     };
 
-    this.Decode = function (op, pc) {
+    // ---- OPCODE DECODING ---- //
+    this.opMap = {};
+    this.prefixOpMap = {};
+
+    // Decoding unprefixed
+    for (var op = 0; op < 256; op ++) {
+
         var hi = op & 0xf0;
         var lo = op & 0x0f;
+
+        var func;
 
         switch (hi) {
 
@@ -1296,13 +1301,13 @@ const Ops = function (cpu) {
 
                     case 0x0: {
                         if (hi === 0x00)
-                            return this.INS.NOP ();
+                            func = 'INS.NOP';
                         if (hi === 0x10)
-                            return this.INS.STOP ();
+                            func = 'INS.STOP';
                         if (hi === 0x20)
-                            return this.INS.JR_cc_e8 (!flag.zero);
+                            func = 'INS.JR_cc_e8';
                         if (hi === 0x30)
-                            return this.INS.JR_cc_e8 (!flag.car);
+                            func = 'INS.JR_cc_e8';
                     }
                     case 0x1: {
                         // LD r16 n16
@@ -1627,7 +1632,7 @@ const Ops = function (cpu) {
             }
 
         }
-    };
+    }
 
     this.DecodeCB = function (op, pc) {
         var hicrumb = (op & 0b11000000) >> 6;
@@ -1686,19 +1691,14 @@ const Ops = function (cpu) {
             throw 'BRUH';
         }*/
 
-        var opcode;
+        var opcode = this.Fetch ();
 
-        if (cpu.haltbugAtm) {
-            cpu.haltbugAtm = false;
-            opcode = cpu.readByte (cpu.pc);
-        }
-        else
-            opcode = this.Fetch ();
-
+        // Prefixed
         if (opcode === 0xcb) {
             opcode = this.Fetch (); // Fetch once more
             this.DecodeCB (opcode, cpu.pc);
         }
+        // Non-prefixed
         else {
             this.Decode (opcode, cpu.pc);
         }

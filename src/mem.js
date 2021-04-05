@@ -41,35 +41,89 @@ const Mem = function (nes, cpu) {
 
     // =============== //   IO Registers //
 
-    /* io_mapped_array
-     * this array contains all io registers that are
-     * currently mapped. it will then be processed into
-     * an object with bools that decide whether to
-     * allow reads
-     */
-    var io_mapped_array = [
-        // 0
-        0x00, 0x04, 0x05, 0x06, 0x07, 0x0f,
-        // 1
-        0x10, 0x11, 0x12, 0x13, 0x14, 0x16, 0x17, 0x18, 0x19,
-        // 2
-        0x24, 0x26,
-        // 4
-        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 
-        0x48, 0x49, 0x4a, 0x4b,
-        // 5
-        0x50
-    ];
+    // On reads ...
+    this.IoRead = function (addr) {
+        addr &= 0xff;
 
-    this.ioMapped = {};
-    // First, fill with falses ...
-    for (var i = 0; i < 0x80; i ++)
-        this.ioMapped [i] = false;
-    // ... then, fill with trues from the array
-    for (var i = 0; i < io_mapped_array.length; i ++)
-        this.ioMapped [io_mapped_array [i]] = true;
+        switch (addr) {
+            // ---- NORMAL CASES ---- //
+            // 0
+            case 0x00:
+            case 0x04:
+            case 0x05:
+            case 0x06:
+            case 0x07:
+            case 0x0f:
+            // 1
+            case 0x10:
+            case 0x11:
+            case 0x12:
+            case 0x13:
+            case 0x14:
+            case 0x16:
+            case 0x17:
+            case 0x18:
+            case 0x19:
+            case 0x1a:
+            case 0x1c:
+            case 0x1d:
+            case 0x1e:
+            // 2
+            case 0x24:
+            case 0x26:
+            // 4
+            case 0x40:
+            case 0x41:
+            case 0x42:
+            case 0x43:
+            case 0x44:
+            case 0x45:
+            case 0x46:
+            case 0x47:
+            case 0x48:
+            case 0x49:
+            case 0x4a:
+            case 0x4b:
+            // 5
+            case 0x50: {
+                return this.ioreg [addr];
+                break;
+            }
 
-    // Io register write function
+            // ---- SPECIAL CASES ---- // 
+            // Channel 3 pattern samples
+            case 0x30:
+            case 0x31:
+            case 0x32:
+            case 0x33:
+            case 0x34:
+            case 0x35:
+            case 0x36:
+            case 0x37:
+            case 0x38:
+            case 0x39:
+            case 0x3a:
+            case 0x3b:
+            case 0x3c:
+            case 0x3d:
+            case 0x3e:
+            case 0x3f: {
+                if (nes.apu.chan3_playback)
+                    return this.ioreg [0x30 + (nes.apu.chan3_sample_step >> 1)];
+                else 
+                    return this.ioreg [addr];
+
+                break;
+            }
+
+            // Unmapped ?..
+            default: {
+                return 0xff; // .. take this
+            }
+        }
+    };
+
+    // On writes ...
     this.IoWrite = function (addr, val) {
         addr &= 0xff;
 
@@ -248,6 +302,83 @@ const Mem = function (nes, cpu) {
                 break;
             }
 
+            // ---- WAVE CHANNEL 3 ---- //
+            // NR30 - playback enable
+            case 0x1a: {
+                if (!(nes.apu.chan3_playback = (val & 0x80) ? true : false))
+                    nes.apu.chan3Disable ();
+
+                this.ioreg [addr] = val | 0x7f;
+                break;
+            }
+
+            // NR31 - length
+            case 0x1b: {
+                nes.apu.chan3_length = 256 - val;
+                break;
+            }
+
+            // NR32 - volume shift. this is some disgusting ass code ik
+            case 0x1c: {
+                var volshift = (val & 0b01100000) >> 5;
+                volshift = nes.apu.chan3_init_volshift =
+                    (volshift ? (volshift - 1) : 4);
+
+                if (nes.apu.chan3_on)
+                    nes.apu.chan3_volshift = volshift;
+
+                this.ioreg [addr] = val | 0b10011111;
+                break;
+            }
+
+            // NR33 - lower 8 bits of frequency
+            case 0x1d: {
+                nes.apu.chan3_raw_freq &= 0x700; // Preserve top bits
+                nes.apu.chan3_raw_freq |= val;
+                break;
+            }
+
+            // NR34 - higher 3 bits of frequency
+            case 0x1e: {
+                nes.apu.chan3_counter_select = (val & 0b01000000) ? true : false; 
+
+                nes.apu.chan3_raw_freq &= 0xff; // Preserve bottom bits
+                nes.apu.chan3_raw_freq |= (val & 0b0111) << 8;
+
+                // Trigger event
+                if (val & 0x80)
+                    nes.apu.chan3Trigger ();
+
+                this.ioreg [addr] = val | 0b10111111;
+                break;
+            }
+
+            // Wave pattern samples
+            case 0x30:
+            case 0x31:
+            case 0x32:
+            case 0x33:
+            case 0x34:
+            case 0x35:
+            case 0x36:
+            case 0x37:
+            case 0x38:
+            case 0x39:
+            case 0x3a:
+            case 0x3b:
+            case 0x3c:
+            case 0x3d:
+            case 0x3e:
+            case 0x3f: {
+                if (nes.apu.chan3_playback)
+                    this.ioreg [0x30 + (nes.apu.chan3_sample_step >> 1)] = val;
+                else
+                    this.ioreg [addr] = val;
+
+                break;
+            }
+
+            // ---- AUDIO SETTINGS ---- //
             // NR50 - i need this so pokemon blue dont freeze
             case 0x24: {
                 this.ioreg [addr] = val;
@@ -432,7 +563,7 @@ const Mem = function (nes, cpu) {
         
         // Initialize unused bits in all io registers
         for (var i = 0; i < 0x80; i ++) {
-            if (this.ioMapped [i] && i !== 0x46) // Don't do a dma pls TwT
+            if (i !== 0x46) // Don't do a dma pls TwT
                 this.IoWrite (i, 0);
         }
 
@@ -465,7 +596,7 @@ const Mem = function (nes, cpu) {
         // ---- ROM NAME ---- //
         this.romName = '';
         // Convert bytes to characters
-        for (var i = 0x134; i < 0x13f; i ++) {
+        for (var i = 0x134; i < 0x143; i ++) {
             this.romName += String.fromCharCode (rom [i]);
         }
 

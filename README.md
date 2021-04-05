@@ -1,8 +1,7 @@
 # <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'> Pollen Boy !
 
 ## Introduction
-hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript,
-and you can [try it online here !](https://nectarboy.github.io/gameboy)
+hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript. you can [try it online here !](https://nectarboy.github.io/gameboy)
 it has most of the gameboys features, such as controls, display, etc
 
 its not meant to be the fastest or most accurate emulator,
@@ -11,7 +10,7 @@ and runs pretty smoothly considering i made this on a thinkpad uwu
 
 with all this, pollen boy is still a wip, and might have some janky bugs somewhere idk,
 so be nice to it <3
-if u have any feedback, criticism, or issues to say tell me !
+if u have any feedback, criticism, or issues to say, please tell me !
 
 ## Screenshots !
 i love these screenshots so now you must look at them
@@ -26,26 +25,33 @@ i love these screenshots so now you must look at them
 
 ## Features
 ### Emulation
-pollen boy has all the basic aspects of the gameboy, though its not emulated cycle accurately at all;
+pollen boy has all the basic aspects of the gameboy, though some parts are not completely accurate.
+
+the cpu is not emulated cycle accurately, so games that need very precise timings may not work.
 i dont completely emulate **everything** about some aspects (... *yet*), like DMA or the HALT instruction.
 
-but so far, i think it holds up pretty good, heres what it has uwu
-- gameboy DMG CPU (no color !)
+as it is, i think it holds up pretty good, heres what it has.
+- gameboy DMG CPU (no gameboy color :c)
 - PPU and display
-- audio (PHAAT WIP)
+- audio (wip ofc)
 - joypad
 - save files
 - interrupts and timers
-- memory banking (support for bigger games)
+- memory banking
 
 ### Teensies
-pollen boy has a lot of what ill call teensies (lil features not related to the gb itself)
+pollen boy has a variety of what ill call teensies (little features not related to the gb itself)
 
-right now, pollen boy has the basic teensies, but not a lot of q.o.l ones, it got:
-- load ROMS
+right now, pollen boy has some of the basic teensies down, that youd expect from a standard emulator.
+however, i still need to add some other things like a volume slider, mute button,
+and maybe a popup with some advanced settings ?
+
+heres what pollen boy has.
 - pause and reset
 - export / import saves
-- a list of palletes i compiled that you can choose from
+- color pallete list to choose from
+- ...
+- thats it
 
 ## How To Use
 open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
@@ -65,19 +71,22 @@ if a game has save support, you can click <kbd>Export</kbd> to download the save
 you can then <kbd>Import</kbd> save files onto games to continue your progress !
 
 ### Color Palletes
-you can swap the colors from a list of palletes i made, including my own, my sisters (mwah btw), and others i found on the internet. i love this feature so love it too. or else.
+you can swap the default pallete from a list of color palletes i made, including my own, my sisters (mwah btw), and others i found on the internet ! i love this feature so love it too. or else.
 
-p.s: palletes dont actually change the games pallete, it just customizes the 4 colors the gameboy can use.
+unfortunately, you cant pick your own colors (... *yet* ... *maybe*), but thats ok cuz u prolly suck ass at choosing colors... JK JK PLE-
 
+### Some Test Screenshots
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
 ![pancake](https://github.com/nectarboy/gameboy/blob/main/docs/dmg-acid/10.png?raw=true 'pancake')
 ![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
 
+left to right - gameboy startup, dmg-acid2, cpu_instr.gb
+
 ## Importing Pollen Boy
-check out `IMPORTING.md` in the root. thought reconsider pls
+check out `IMPORTING.md` in the root. though reconsider pls
 
 ## Special Thanks
-thank you to everyone mentioned here. whether big or small, you all played a part to pollen boy, and ily !
+thank you to everyone mentioned here. whether big or small, you all played a part to pollen boy, and ily.
 
 ### Resources 
 - [the pandocs](https://gbdev.github.io/pandocs/)

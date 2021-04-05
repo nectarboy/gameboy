@@ -20,13 +20,14 @@ const Apu = function (nes) {
 
     this.bufferInd = 0;
 
-    // Create a buffer queue, that we will fill up in za mean time
+    // Buffer queue
     this.bufferQueues = {};
     this.bufferQueues.length = Math.floor (this.buffer.length / this.buffer.numberOfChannels);
-
+    // Filling buffer quee
     for (var i = 0; i < this.buffer.numberOfChannels; i ++)
         this.bufferQueues [i] = new Float32Array (this.bufferQueues.length);
 
+    // Buffer methods
     this.StepBuffer = function () {
         var sample = this.GetSample ();
         this.bufferQueues [0] [this.bufferInd ++] = sample;
@@ -38,15 +39,20 @@ const Apu = function (nes) {
         // Channel 1
         var sample1 =
             this.duty [this.chan1_pattern_duty] [this.chan1_duty_step]
-            ? this.chan1_env_vol : -this.chan1_env_vol;
+            * this.chan1_env_vol;
 
         // Channel 2
         var sample2 =
             this.duty [this.chan2_pattern_duty] [this.chan2_duty_step]
-            ? this.chan2_env_vol : -this.chan2_env_vol;
+            * this.chan2_env_vol;
+
+        // Channel 3
+        var sample3 = this.chan3GetSample ();
+        sample3 = (sample3 + (sample3 - 0xf)) >> this.chan3_volshift;
+        sample3 /= 0xf;
 
         // Mix ...
-        return (sample1 + sample2) / 2;
+        return (sample1 + sample2 + sample3) / 3;
     };
 
     this.pitchShift = 0;
@@ -86,10 +92,10 @@ const Apu = function (nes) {
 
     // Duty patterns
     this.duty = {
-        0: [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
-        1: [1, 0, 0, 0, 0, 0, 0, 1], // 25%
-        2: [1, 0, 0, 0, 0, 1, 1, 1], // 50%
-        3: [0, 1, 1, 1, 1, 1, 1, 0]  // 75%
+        0: [-1, -1, -1, -1, -1, -1, -1, 1], // 12.5%
+        1: [1, -1, -1, -1, -1, -1, -1, 1], // 25%
+        2: [1, -1, -1, -1, -1, 1, 1, 1], // 50%
+        3: [-1, 1, 1, 1, 1, 1, 1, -1]  // 75%
     };
 
     // =============== //   Reset Function //
@@ -113,6 +119,11 @@ const Apu = function (nes) {
         this.chan2_env_clocks = 0;
         this.chan2_freq_timer = 0;
         this.chan2_duty_step = 0;
+
+        // Reset channel 3
+        this.chan3_freq_timer = 0;
+        this.chan3_byte_step = 0;
+        this.chan3_sample = 0;
 
         this.length_step = false;
     };
@@ -332,6 +343,69 @@ const Apu = function (nes) {
         }
     };
 
+    // =============== //   Wave Channel 3 //
+
+    this.chan3_on = false;
+
+    this.chan3Disable = function () {
+        this.chan3_on = false;
+        this.chan3_volshift = 4;
+    };
+
+    this.chan3Trigger = function () {
+        if (!this.chan3_playback)
+            return;
+
+        this.chan3_on = true;
+
+        this.chan3_volshift = this.chan3_init_volshift;
+
+        // Restart length
+        if (this.chan3_length === 0)
+            this.chan3_length = 256; // Full
+    };
+
+    // Playback enable
+    this.chan3_playback = false;
+
+    // Length
+    this.chan3_length = 0;
+
+    this.chan3UpdateLength = function () {
+        if (this.length_step && this.chan3_counter_select && -- this.chan3_length === 0)
+            this.chan3Disable ();
+    };
+
+    // Volume shift
+    this.chan3_init_volshift = 0;
+    this.chan3_volshift = 0;
+
+    // Frequency + settings ??
+    this.chan3_counter_select = false;
+    this.chan3_raw_freq = 0;
+
+    // Frequency timer
+    this.chan3_freq_timer = 0;
+    this.chan3_sample_step = 0;
+
+    this.chan3UpdateFreq = function (cycled) {
+        this.chan3_freq_timer -= cycled;
+        if (this.chan3_freq_timer <= 0) {
+            this.chan3_freq_timer += (2048 - this.chan3_raw_freq) * 2;
+
+            this.chan3_sample_step ++;
+            this.chan3_sample_step &= 0x1f;
+        }
+    };
+
+    this.chan3GetSample = function () {
+        return (
+            ((mem.ioreg [0x30 + (this.chan3_sample_step >> 1)]
+            >> (!(this.chan3_sample_step & 1) * 4))
+            & 0xf) //>> this.chan3_volshift
+        );
+    };
+
     // =============== //   Sound Controller //
 
     this.soundclocks = 0;
@@ -349,6 +423,7 @@ const Apu = function (nes) {
         // Frequency timers
         this.chan1UpdateFreq (cycled);
         this.chan2UpdateFreq (cycled);
+        this.chan3UpdateFreq (cycled);
 
         // Every 512 hz ...
         this.soundclocks += cycled;
@@ -364,6 +439,11 @@ const Apu = function (nes) {
             if (this.chan2_on) {
                 this.chan2UpdateEnvelope ();
                 this.chan2UpdateLength ();
+            }
+
+            // Channel 3
+            if (this.chan3_on) {
+                this.chan3UpdateLength ();
             }
 
             this.length_step = !this.length_step;

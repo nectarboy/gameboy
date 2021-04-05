@@ -18,7 +18,9 @@ const Cpu = function (nes) {
     this.crashed = false;
 
     this.lowpower = false;
+
     this.halted = false;
+    this.haltbugAtm = false;
 
     this.ime = false;
 
@@ -300,8 +302,6 @@ this.CheckInterrupts = function () {
     this.readByte = function (addr) {
         var mem = this.mem;
 
-        addr &= 0xffff;
-
         // ROM //
         if (this.bootromAtm && addr < 0x100) {
             return mem.bootrom [addr];
@@ -346,18 +346,14 @@ this.CheckInterrupts = function () {
                 return mode;
 
             return mem.oam [addr - 0xfe00];
-        } else
+        }
         // UNUSED //
         if (addr < 0xff00) {
             return 0; // Reading from unused yields 0
         }
         // IO REG
         if (addr < 0xff80) {
-            addr &= 0xff;
-
-            if (mem.ioMapped [addr])
-                return mem.ioreg [addr];
-            return 0xff;
+            return mem.IoRead (addr);
         }
         // HIGH
         if (addr < 0xffff) {
@@ -370,42 +366,36 @@ this.CheckInterrupts = function () {
     this.writeByte = function (addr, val) {
         var mem = this.mem;
 
-        addr &= 0xffff;
-        val &= 0xff;
-
         // MBC CONTROL //
         if (addr < 0x8000) {
             mem.mbcWrite [mem.mbc] (addr, val);
-            return val;
         }
         // VIDEO //
-        if (addr < 0xa000) {
+        else if (addr < 0xa000) {
             var mode = nes.ppu.stat.mode;
             // Block write if lcd mode is 3
-            if (mode === 3)
-                return val;
-            return mem.vram [addr - 0x8000] = val;
+            if (mode !== 3)
+                mem.vram [addr - 0x8000] = val;
         }
         // CART RAM //
-        if (addr < 0xc000) {
+        else if (addr < 0xc000) {
             if (mem.ramenabled && mem.evenhasram)
                 mem.mbcRamWrite [mem.mbc] (addr - 0xa000, val);
-            return val;
         }
         // WORK RAM //
-        if (addr < 0xe000) {
-            return mem.wram [addr - 0xc000] = val;
+        else if (addr < 0xe000) {
+            mem.wram [addr - 0xc000] = val;
         }
         // ECHO RAM //
-        if (addr < 0xfe00) {
-            return mem.wram [addr - 0xe000] = val;
+        else if (addr < 0xfe00) {
+            mem.wram [addr - 0xe000] = val;
         }
         // VIDEO (oam) //
-        if (addr < 0xfea0) {
+        else if (addr < 0xfea0) {
             var mode = nes.ppu.stat.mode;
             // Block write if lcd mode is 2 or 3
             if (mode > 1)
-                return val;
+                return;
 
             // Write object properties to sprite pool
             addr -= 0xfe00;
@@ -413,47 +403,42 @@ this.CheckInterrupts = function () {
             nes.ppu.spritePool
                 [addr >> 2] [addr & 3] (val); // (4 bytes per sprite)
 
-            return mem.oam [addr] = val;
+            mem.oam [addr] = val;
         }
         // UNUSED //
-        if (addr < 0xff00) {
-            return val;
+        else if (addr < 0xff00) {
+            return;
         }
         // IO REG
-        if (addr < 0xff80) {
-            addr &= 0xff;
-
-            if (mem.ioMapped [addr])
-                mem.IoWrite (addr, val);
-            return val;
+        else if (addr < 0xff80) {
+             mem.IoWrite (addr, val);
         }
         // HIGH
-        if (addr < 0xffff) {
-            return mem.hram [addr - 0xff80] = val;
+        else if (addr < 0xffff) {
+            mem.hram [addr - 0xff80] = val;
         }
         // INTERRUPT
-        this.ienable.Write (val);
-        return val;
+        else {
+            this.ienable.Write (val);
+        }
     };
 
     this.read16 = function (addr) {
-        var hi = this.readByte (addr); //  Get high byte
-        var lo = this.readByte (addr + 1); //  Get low byte
+        var hi = this.readByte (addr ++); //  Get high byte
+        var lo = this.readByte (addr & 0xffff); //  Get low byte
 
         return (lo << 8) | hi; // Mask to 16bit int
     };
     this.read16alt = function (addr) {
-        var hi = this.readByte (addr); //  Get high byte
-        var lo = this.readByte (addr + 1); //  Get low byte
+        var hi = this.readByte (addr ++); //  Get high byte
+        var lo = this.readByte (addr & 0xffff); //  Get low byte
 
         return (hi << 8) | lo; // Mask to 16bit int
     };
 
     this.write16 = function (addr, val) {
-        this.writeByte (addr, (val & 0xff)); // Get low byte
-        this.writeByte (addr + 1, ((val & 0xff00) >> 8)); //  Get high byte
-
-        return val & 0xffff;
+        this.writeByte (addr ++, val & 0xff); // Get low byte
+        this.writeByte (addr & 0xffff, val >> 8); //  Get high byte
     };
 
     // =============== //   Instructions //
@@ -525,7 +510,9 @@ this.CheckInterrupts = function () {
         this.flag.car = false;
 
         this.lowpower = false;
+
         this.halted = false;
+        this.haltbugAtm = false;
 
         this.ime = false;
 
@@ -576,10 +563,8 @@ this.CheckInterrupts = function () {
         this.sp = 0xfffe;
 
         // Set ioreg values
-        this.writeByte (0xff40, 0x91); // LCDC
-
-        // Disable bootrom
-        this.writeByte (0xff50, 1);
+        this.mem.IoWrite (0x40, 0x91); // LCDC
+        this.mem.IoWrite (0x50, 0x01); // Disable bootrom
 
         // console.log (this.ops.GetLogLine (this.pc));
     };
