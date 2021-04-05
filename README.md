@@ -75,7 +75,7 @@ you can swap the default pallete from a list of color palletes i made, including
 
 unfortunately, you cant pick your own colors (... *yet* ... *maybe*), but thats ok cuz u prolly suck ass at choosing colors... JK JK PLE-
 
-### Some Test Screenshots
+## Some Test Screenshots
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')
 ![pancake](https://github.com/nectarboy/gameboy/blob/main/docs/dmg-acid/10.png?raw=true 'pancake')
 ![bwarg uwu](https://github.com/nectarboy/gameboy/blob/main/docs/blargg/pass.png?raw=true 'ok.')
