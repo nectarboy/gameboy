@@ -476,8 +476,6 @@ const Mem = function (nes, cpu) {
                 }
 
                 this.ioreg [addr] = val;
-
-                //cpu.cycles += 160; // DMA takes 160 t cycles ??
                 break;
             }
 

@@ -178,9 +178,10 @@ const Ppu = function (nes) {
 
         this.wx =
         this.wy = 
-        this.wilc =
+        this.wilc = 0;
+        this.winOnThisFrame = false;
 
-        this.sub_ly =
+        this.sub_ly = 0;
 
         this.scrollx =
         this.scrolly = 0;
@@ -209,6 +210,7 @@ const Ppu = function (nes) {
         // Reset LY (and WILC) to 0
         this.ly = 
         this.wilc = 0;
+        this.winOnThisFrame = false;
         // Don't forget to check for dos concedenes =)
         this.CheckCoincidence ();
         
@@ -367,6 +369,7 @@ const Ppu = function (nes) {
                     if (this.ly === 154) {
                         this.ly = 0;
                         this.wilc = 0;
+                        this.winOnThisFrame = false;
 
                         this.CheckCoincidence ();
 
@@ -421,6 +424,7 @@ const Ppu = function (nes) {
     this.wy = 0;
 
     this.wilc = 0; // Window internal line counter
+    this.winOnThisFrame = false;
 
     // BG scroll positions
     this.scrollx = 0;
@@ -450,7 +454,8 @@ const Ppu = function (nes) {
         var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
         var winindy = winmapbase + ((this.wilc >> 3) * 32) - 0x8000; // Vram access fix
 
-        var inWindowRn = this.lcdc.window_enabled && this.ly >= this.wy && this.wx < gbwidth;
+        !this.winOnThisFrame && (this.winOnThisFrame = this.ly === this.wy);
+        var inWindowRn = this.lcdc.window_enabled && this.winOnThisFrame && this.wx < gbwidth;
 
         while (this.lx < gbwidth) {
             // ----- WINDOW ----- //

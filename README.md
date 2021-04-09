@@ -1,16 +1,28 @@
 # <img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_small.png?raw=true'> Pollen Boy !
 
 ## Introduction
-hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript. you can [try it online here !](https://nectarboy.github.io/gameboy)
+hey ! this is pollen boy, my very own gameboy emulator. it is written in pure javascript.
+you can [try it online here !](https://nectarboy.github.io/gameboy)
 it has most of the gameboys features, such as controls, display, etc
 
 its not meant to be the fastest or most accurate emulator,
 but it passes the basic tests, runs most games i tried,
 and runs pretty smoothly considering i made this on a thinkpad uwu
 
-with all this, pollen boy is still a wip, and might have some janky bugs somewhere idk,
+with all this, pollen boy is a baby, and might have some janky bugs somewhere idk,
 so be nice to it <3
 if u have any feedback, criticism, or issues to say, please tell me !
+
+<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'>
+<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'>
+<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'> 
+
+PS - ive stopped working on pollen boy, ive been working on it since like november,
+and im very happy how it turned out.
+
+till now lacks color, better timing, some mbc support, the noise channel, etc etc,
+but its time to give pollen boy some alone time <3
+maybe ill come back in the summer and add all these things, or maybe not.
 
 ## Screenshots !
 i love these screenshots so now you must look at them
@@ -49,9 +61,9 @@ and maybe a popup with some advanced settings ?
 heres what pollen boy has.
 - pause and reset
 - export / import saves
-- color pallete list to choose from
-- ...
-- thats it
+- color palletes
+- volume slider (ofc ..)
+- pitch warp slider (waw)
 
 ## How To Use
 open the webpage, click <kbd>Choose ROM</kbd> and enjoy !
@@ -73,7 +85,12 @@ you can then <kbd>Import</kbd> save files onto games to continue your progress !
 ### Color Palletes
 you can swap the default pallete from a list of color palletes i made, including my own, my sisters (mwah btw), and others i found on the internet ! i love this feature so love it too. or else.
 
-unfortunately, you cant pick your own colors (... *yet* ... *maybe*), but thats ok cuz u prolly suck ass at choosing colors... JK JK PLE-
+additionally, if you click the <kbd>Custom</kbd> button, you can input your own pallete (in RGB hex of course) !
+
+### Sound Settings
+in sound settings you can change the volume and warp the pitch by dragging some sick ass sliders around ! yay !
+
+a volume of 0 will disable sound emulation alltogether, to increase performance. also, the pitch warp feature is really funky so play around to get sum cool sounds !
 
 ## Some Test Screenshots
 ![nintendo logo my beloved](https://github.com/nectarboy/gameboy/blob/main/docs/bootrom.png?raw=true 'Nintendo® !!')

@@ -47,9 +47,14 @@ const Apu = function (nes) {
             * this.chan2_env_vol;
 
         // Channel 3
-        var sample3 = this.chan3GetSample ();
-        sample3 = (sample3 + (sample3 - 0xf)) >> this.chan3_volshift;
-        sample3 /= 0xf;
+        var sample3;
+        if (this.chan3_volshift === 4)
+            sample3 = 0;
+        else {
+            sample3 = this.chan3GetSample ();
+            sample3 = (sample3 + (sample3 - 0xf)) >> this.chan3_volshift;
+            sample3 /= 0xf;
+        }
 
         // Mix ...
         return (sample1 + sample2 + sample3) / 3;

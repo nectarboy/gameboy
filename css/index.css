@@ -197,6 +197,51 @@ html, body {
 	line-height: 15px;
 }
 
+/* RANGE */
+
+.range {
+	-webkit-appearance: none;
+	appearance: none;
+
+	user-select: none;
+
+	width: 250px;
+	height: 14px;
+
+	border: 1px solid #A55AFF;
+	border-radius: 10px;
+
+	background: none;
+}
+.range:active {
+	background: #942994;
+	border: 1px solid white;
+}
+
+.range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+
+	width: 18px;
+	height: 18px;
+
+	border-radius: 4px;
+
+	background: #DEC69C;
+}
+.range::-moz-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+
+	width: 18px;
+	height: 18px;
+
+	border-radius: 4px;
+
+	background: #DEC69C;
+}
+
+
 /* GAMEBOY */
 
 .screenwrap {

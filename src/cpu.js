@@ -319,9 +319,9 @@ this.CheckInterrupts = function () {
         // VIDEO //
         if (addr < 0xa000) {
             var mode = nes.ppu.stat.mode;
-            // Block read if lcd mode is 3
-            if (mode === 3)
-                return mode;
+            //if (mode === 3) // I turned off my LCD blocking cuz its bad
+            //    return mode;
+
             return mem.vram [addr - 0x8000];
         }
         // CART RAM //
@@ -341,9 +341,8 @@ this.CheckInterrupts = function () {
         // VIDEO (oam) //
         if (addr < 0xfea0) {
             var mode = nes.ppu.stat.mode;
-            // Block read if lcd mode is 2 or 3
-            if (mode > 1)
-                return mode;
+            //if (mode > 1) // I turned off my LCD blocking cuz its bad
+            //    return mode;
 
             return mem.oam [addr - 0xfe00];
         }
@@ -372,9 +371,7 @@ this.CheckInterrupts = function () {
         }
         // VIDEO //
         else if (addr < 0xa000) {
-            var mode = nes.ppu.stat.mode;
-            // Block write if lcd mode is 3
-            if (mode !== 3)
+            //if (nes.ppu.stat.mode !== 3) // I turned off my LCD blocking cuz its bad
                 mem.vram [addr - 0x8000] = val;
         }
         // CART RAM //
@@ -392,10 +389,8 @@ this.CheckInterrupts = function () {
         }
         // VIDEO (oam) //
         else if (addr < 0xfea0) {
-            var mode = nes.ppu.stat.mode;
-            // Block write if lcd mode is 2 or 3
-            if (mode > 1)
-                return;
+            //if (nes.ppu.stat.mode > 1) // I turned off my LCD blocking cuz its bad
+            //   return;
 
             // Write object properties to sprite pool
             addr -= 0xfe00;
@@ -564,6 +559,9 @@ this.CheckInterrupts = function () {
 
         // Set ioreg values
         this.mem.IoWrite (0x40, 0x91); // LCDC
+        this.mem.IoWrite (0x47, 0xfc); // BGP
+        this.mem.IoWrite (0x48, 0xff); // OBP 1
+        this.mem.IoWrite (0x49, 0xff); // OBP 2
         this.mem.IoWrite (0x50, 0x01); // Disable bootrom
 
         // console.log (this.ops.GetLogLine (this.pc));

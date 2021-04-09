@@ -421,8 +421,8 @@ const Ops = function (cpu) {
 
         // HALT - WIP
         HALT () {
-            var IF = cpu.mem.ioreg [0x0f];  // Iflags
-            var IE = cpu.mem.iereg;         // Ienables
+            var IF = cpu.mem.ioreg [0x0f];
+            var IE = cpu.mem.iereg;
 
             // Exit hell if an interrupt is valid to be serviced
             if (IF & IE & 0x1f) {

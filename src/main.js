@@ -19,7 +19,7 @@ const Gameboy = function () {
     this.bootromEnabled = false;
 
     // Audio pitch shift
-    this.setPitchSift = function (shift) {
+    this.SetPitchShift = function (shift) {
         this.apu.pitchShift = shift;
     };
 
