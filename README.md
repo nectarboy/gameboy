@@ -13,9 +13,9 @@ with all this, pollen boy is a baby, and might have some janky bugs somewhere id
 so be nice to it <3
 if u have any feedback, criticism, or issues to say, please tell me !
 
-<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'>
-<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'>
-<img src='https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true'> 
+![hart1](https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true)
+![hart2](https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true)
+![hart3](https://github.com/nectarboy/gameboy/blob/main/docs/logo_love.png?raw=true)
 
 PS - ive stopped working on pollen boy, ive been working on it since like november,
 and im very happy how it turned out.
@@ -124,6 +124,7 @@ thank you to everyone mentioned here. whether big or small, you all played a par
 - [lospec.com](https://lospec.com/) (tons of amazing palletes)
 - [this video](https://www.youtube.com/watch?v=RyjL-hckDt0&ab_channel=ParkerSimmonsAnimation) because its cool as fuck
 - [stackoverflow](https://www.youtube.com/watch?v=D6qEOSc1jJc&ab_channel=LilCoop-Topic) jk fuck stackoverflow lmao
+- super legend boy for the website font ~ im too lazy to include the link srry lmao
 
 ## The End
 thank you for checking out my baby boy pollen boy <3
