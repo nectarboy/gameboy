@@ -42,8 +42,9 @@ const Gameboy = function () {
     this.SetFPS = function (fps) {
         this.fps = fps;
         this.cpu.cyclesperframe = this.cpu.cyclespersec / fps;
-        this.cpu.interval = 1000 / fps;
+        this.cpu.refreshCycleTimings ();
 
+        this.cpu.interval = 1000 / fps;
         return fps;
     };
 

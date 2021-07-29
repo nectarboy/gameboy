@@ -43,6 +43,35 @@ const Ops = function (cpu) {
         return n | (1 << b);
     }
 
+    // High Memory Operations //
+    function writeHigh(addr, val) {
+        // IO REG
+        if (addr < 0x80) {
+             cpu.mem.IoWrite (addr, val);
+        }
+        // HIGH
+        else if (addr < 0xff) {
+            cpu.mem.hram [addr - 0x80] = val;
+        }
+        // INTERRUPT
+        else {
+            cpu.ienable.Write (val);
+        }
+    }
+
+    function readHigh(addr) {
+        // IO REG
+        if (addr < 0x80) {
+             return cpu.mem.IoRead (addr);
+        }
+        // HIGH
+        else if (addr < 0xff) {
+            return cpu.mem.hram [addr - 0x80];
+        }
+        // INTERRUPT
+        return cpu.mem.iereg;
+    }
+
     // =============== //   GB Instructions //
 
     // Algorithmic Decoding
@@ -583,23 +612,23 @@ const Ops = function (cpu) {
         // LDH
         LDH_n8_a () {
             var byte = ops.Fetch ();
-            cpu.writeByte (0xff00 | byte, reg.a); // Write to ioreg at 0xff00 | byte
+            writeHigh (byte, reg.a); // Write to ioreg at 0xff00 | byte
 
             cpu.cycles += 12;
         },
         LDH_c_a () {
-            cpu.writeByte (0xff00 | reg.c, reg.a); // Write to ioreg at 0xff00 | byte
+            writeHigh (reg.c, reg.a); // Write to ioreg at 0xff00 | byte
 
             cpu.cycles += 8;
         },
         LDH_a_n8 () {
             var byte = ops.Fetch ();
-            reg.a = cpu.readByte (0xff00 | byte);
+            reg.a = readHigh (byte);
 
             cpu.cycles += 12;
         },
         LDH_a_c () {
-            reg.a = cpu.readByte (0xff00 | reg.c);
+            reg.a = readHigh (reg.c);
 
             cpu.cycles += 8;
         },

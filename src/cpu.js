@@ -6,8 +6,10 @@ const Cpu = function (nes) {
 
     this.cyclespersec = 4194304; // 4194304
 
-    this.cyclesperframe = 
+    this.cyclesperframe = 0;
     this.interval = 0;
+
+    this.cpu_cpf = 0;
 
     // =============== //   Basic Elements //
 
@@ -16,8 +18,6 @@ const Cpu = function (nes) {
     this.hasRom = false;
 
     this.crashed = false;
-
-    this.lowpower = false;
 
     this.halted = false;
     this.haltbugAtm = false;
@@ -103,6 +103,60 @@ const Cpu = function (nes) {
         hcar: false,
         car: false
     };
+
+    // =============== //   Gameboy Color //
+
+    this.cgb = false;
+    this.colorSpeed = false;
+
+    this.wramBankAddr = 0;
+
+    this.speedSwitchFast = function () {
+        this.colorSpeed = true;
+
+        // CPU timings
+        this.cpu_cpf = this.cyclesperframe * 2;
+
+        // PPU timings
+        nes.ppu.ppu_oamlength = nes.ppu.oamlength * 2;
+        nes.ppu.ppu_drawlength = nes.ppu.drawlength * 2;
+        nes.ppu.ppu_hblanklength = nes.ppu.hblanklength * 2;
+        nes.ppu.ppu_scanlinelength = nes.ppu.scanlinelength * 2;
+
+        // APU timings
+        nes.apu.apu_soundinterval = nes.apu.soundinterval * 2;
+        nes.apu.apu_bufferinterval = nes.apu.bufferinterval * 2;
+
+        nes.apu.apu_squarefreqmul = nes.apu.squarefreqmul * 2;
+        nes.apu.apu_wavefreqmul = nes.apu.wavefreqmul * 2;
+    };
+
+    this.speedSwitchSlow = function () {
+        this.colorSpeed = false;
+
+        // CPU timings
+        this.cpu_cpf = this.cyclesperframe;
+
+        // PPU timings
+        nes.ppu.ppu_oamlength = nes.ppu.oamlength;
+        nes.ppu.ppu_drawlength = nes.ppu.drawlength;
+        nes.ppu.ppu_hblanklength = nes.ppu.hblanklength;
+        nes.ppu.ppu_scanlinelength = nes.ppu.scanlinelength
+
+        // APU timings
+        nes.apu.apu_soundinterval = nes.apu.soundinterval;
+        nes.apu.apu_bufferinterval = nes.apu.bufferinterval;
+
+        nes.apu.apu_squarefreqmul = nes.apu.squarefreqmul;
+        nes.apu.apu_wavefreqmul = nes.apu.wavefreqmul;
+    };
+
+    this.refreshCycleTimings = function () {
+        if (this.colorSpeed)
+            this.speedSwitchFast();
+        else
+            this.speedSwitchSlow();
+    }
 
     // =============== //   Interrupts //
 
@@ -330,13 +384,17 @@ this.CheckInterrupts = function () {
                 return 0xff;
             return mem.mbcRamRead [mem.mbc] (addr - 0xa000);
         }
-        // WORK RAM //
+        // WORK RAM - NO BANK 0 //
+        if (addr < 0xd000) {
+            return mem.wram0 [addr - 0xc000];
+        }
+        // WORK RAM - CGB BANKABLE / NO BANK 1 //
         if (addr < 0xe000) {
-            return mem.wram [addr - 0xc000];
+            return mem.wram1 [addr - 0xc000 + this.wramBankAddr];
         }
         // ECHO RAM //
         if (addr < 0xfe00) {
-            return mem.wram [addr - 0xe000];
+            return mem.wram0 [addr - 0xe000];
         }
         // VIDEO (oam) //
         if (addr < 0xfea0) {
@@ -379,13 +437,17 @@ this.CheckInterrupts = function () {
             if (mem.ramenabled && mem.evenhasram)
                 mem.mbcRamWrite [mem.mbc] (addr - 0xa000, val);
         }
-        // WORK RAM //
+        // WORK RAM - NO BANK 0 //
+        else if (addr < 0xd000) {
+            mem.wram0 [addr - 0xc000] = val;
+        }
+        // WORK RAM - CGB BANKABLE / NO BANK 1 //
         else if (addr < 0xe000) {
-            mem.wram [addr - 0xc000] = val;
+            mem.wram1 [addr - 0xc000 + this.wramBankAddr] = val;
         }
         // ECHO RAM //
         else if (addr < 0xfe00) {
-            mem.wram [addr - 0xe000] = val;
+            mem.wram0 [addr - 0xe000] = val;
         }
         // VIDEO (oam) //
         else if (addr < 0xfea0) {
@@ -448,26 +510,25 @@ this.CheckInterrupts = function () {
     this.msAfter = 0;
 
     this.RunFrame = function (extracycles) {
-        var cycles = this.cyclesperframe - extracycles;
-
-        while (cycles > 0) {
-            cycles -= this.Step ();
-        }
-
-        return cycles;
+        return this.Step (this.cpu_cpf - extracycles);
     };
 
-    this.Step = function () {
-        this.cycles = 0;
+    this.Step = function (cycles) {
+        while (cycles > 0) {
 
-        // Handle program flow
-        this.ops.ExeIns ();
-        this.CheckInterrupts ();
+            this.cycles = 0;
 
-        // Handle ppu, timers, and apu
-        nes.ppu.HandleScan (this.cycles);
-        this.HandleTimers (this.cycles);
-        nes.apu.SoundController (this.cycles); // GOD FUCK THE APU
+            // Handle program flow
+            this.ops.ExeIns ();
+            this.CheckInterrupts ();
+
+            // Handle ppu, timers, and apu
+            nes.ppu.HandleScan (this.cycles);
+            this.HandleTimers (this.cycles);
+            nes.apu.SoundController (this.cycles); // GOD FUCK THE APU
+
+            cycles -= this.cycles;
+        }
 
         return this.cycles;
     };
@@ -504,8 +565,6 @@ this.CheckInterrupts = function () {
         this.flag.hcar =
         this.flag.car = false;
 
-        this.lowpower = false;
-
         this.halted = false;
         this.haltbugAtm = false;
 
@@ -539,6 +598,11 @@ this.CheckInterrupts = function () {
         else {
             this.Bootstrap (); // Manually bootstrap
         }
+
+        // CGB
+        this.wramBankAddr = 0;
+        this.colorSpeed = false;
+        this.refreshCycleTimings();
     };
 
     this.Bootstrap = function () {

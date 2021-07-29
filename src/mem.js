@@ -21,7 +21,8 @@ const Mem = function (nes, cpu) {
     // Cartram - 0xa000 - 0xbfff
     this.cartram = null; // variable amt of ram found in cart
     // Work ram - 0xc000 - 0xdfff
-    this.wram = new Uint8Array (0x2000); // 8KB of ram to work with
+    this.wram0 = new Uint8Array (0x2000); // first 4KB of ram to work with
+    this.wram1 = new Uint8Array (0x7000); // second 4KB / bankable of ram to work with
 
     // (mirror memory of 0xc000) - 0xe000 - 0xfdff
 
@@ -194,7 +195,7 @@ const Mem = function (nes, cpu) {
                 break;
             }
 
-            // ----- SQUARE CHANEL 1 ----- //
+            // ----- SQUARE CHANEL 1 ----- // (lots of bad code here im sorry)
             // NR10 - sweep reg
             case 0x10: {
                 nes.apu.chan1_sweep_time = 512 * ((val >> 4) / 128);
@@ -305,7 +306,8 @@ const Mem = function (nes, cpu) {
             // ---- WAVE CHANNEL 3 ---- //
             // NR30 - playback enable
             case 0x1a: {
-                if (!(nes.apu.chan3_playback = (val & 0x80) ? true : false))
+                nes.apu.chan3_playback = (val & 0x80);
+                if (nes.apu.chan3_playback === 0)
                     nes.apu.chan3Disable ();
 
                 this.ioreg [addr] = val | 0x7f;
@@ -388,32 +390,25 @@ const Mem = function (nes, cpu) {
             // NR52 - Sound enable / status ?
             case 0x26: {
                 nes.apu.soundOn = (val & 0x80) ? true : false;
-
                 this.ioreg [addr] = val | 0b01111111;
                 break;
             }
 
             // LCDC
             case 0x40: {
-                var bits = [];
                 var lcdc = nes.ppu.lcdc;
-
-                for (var i = 0; i < 8; i ++) {
-                    bits [i] = (val & (1 << i)) ? true : false;
-                }
-
                 var lcdWasOn = lcdc.lcd_enabled;
 
-                lcdc.bg_enabled             = bits [0];
-                lcdc.sprites_enabled        = bits [1];
-                lcdc.tall_sprites           = bits [2];
-                lcdc.bg_tilemap_alt         = bits [3];
-                lcdc.signed_addressing      = bits [4];
-                lcdc.window_enabled         = bits [5];
-                lcdc.window_tilemap_alt     = bits [6];
-                lcdc.lcd_enabled            = bits [7];
+                lcdc.bg_enabled             = (val & 0x01) ? true : false;
+                lcdc.sprites_enabled        = (val & 0x02) ? true : false;
+                lcdc.tall_sprites           = (val & 0x04) ? true : false;
+                lcdc.bg_tilemap_alt         = (val & 0x08) ? true : false;
+                lcdc.signed_addressing      = (val & 0x10) ? true : false;
+                lcdc.window_enabled         = (val & 0x20) ? true : false;
+                lcdc.window_tilemap_alt     = (val & 0x40) ? true : false;
+                lcdc.lcd_enabled            = (val & 0x80) ? true : false;
 
-                // Handle lcd enable changes
+               // Handle lcd enable changes
                 if (lcdWasOn !== lcdc.lcd_enabled) {
                     if (lcdc.lcd_enabled)
                         nes.ppu.TurnLcdOn ();
@@ -428,7 +423,6 @@ const Mem = function (nes, cpu) {
             // LCDC status
             case 0x41: {
                 var ppu = nes.ppu;
-
                 var preStat = this.ioreg [addr] & 0b01111000;
 
                 ppu.stat.coin_irq_on   = (val & 0b01000000) ? true : false; // Bit 6
@@ -483,11 +477,12 @@ const Mem = function (nes, cpu) {
             case 0x47: {
                 var palshades = nes.ppu.palshades;
 
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    palshades [i] = (val >> (i << 1)) & 3;
-                }
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                palshades [0] = (val) & 3;
+                palshades [1] = (val >> 2) & 3;
+                palshades [2] = (val >> 4) & 3;
+                palshades [3] = (val >> 6) & 3;
 
                 this.ioreg [addr] = val;
                 break;
@@ -497,11 +492,12 @@ const Mem = function (nes, cpu) {
             case 0x48: {
                 var objshades = nes.ppu.objshades [0];
 
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    objshades [i] = (val >> (i << 1)) & 3;
-                }
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                objshades [0] = (val) & 3;
+                objshades [1] = (val >> 2) & 3;
+                objshades [2] = (val >> 4) & 3;
+                objshades [3] = (val >> 6) & 3;
 
                 this.ioreg [addr] = val;
                 break;
@@ -509,11 +505,12 @@ const Mem = function (nes, cpu) {
             case 0x49: {
                 var objshades = nes.ppu.objshades [1];
 
-                for (var i = 0; i < 4; i ++) {
-                    // Get specific crumbs from val
-                    // A 'crumb' is a 2 bit number, i coined that :D
-                    objshades [i] = (val >> (i << 1)) & 3;
-                }
+                // Get specific crumbs from val
+                // A 'crumb' is a 2 bit number, i coined that :D
+                objshades [0] = (val) & 3;
+                objshades [1] = (val >> 2) & 3;
+                objshades [2] = (val >> 4) & 3;
+                objshades [3] = (val >> 6) & 3;
 
                 this.ioreg [addr] = val;
                 break;
@@ -552,8 +549,12 @@ const Mem = function (nes, cpu) {
     this.Reset = function () {
         // Reset all memory pies to 0
         this.vram.fill (0);
-        // this.wram.fill (0); // Turn this off for random ram emulation ig ?!?!
+        // Turn this off for random ram emulation ig ?!?!
+        // this.wram0.fill (0);
+        // this.wram1.fill (0);
+
         // this.cartram.fill (0);
+        
         this.oam.fill (0);
         this.ioreg.fill (0);
         this.hram.fill (0);
@@ -601,8 +602,8 @@ const Mem = function (nes, cpu) {
         document.title = 'Pollen Boy: ' + this.romName;
 
         // ---- CGB MODE ---- //
-        if (rom [0x143] === 0xc0)
-            throw 'rom is gb color only :(';
+        if (rom [0x143] === 0xc0 || rom [0x143] === 0x80)
+            cpu.cgb = true;
 
         // ---- ROM SIZE ---- //
         var romSize = rom [0x148];

@@ -28,11 +28,26 @@ const Apu = function (nes) {
         this.bufferQueues [i] = new Float32Array (this.bufferQueues.length);
 
     // Buffer methods
+    this.updateBuffer = function (cycles) {
+        this.bufferclocks += cycles;
+        if (this.bufferclocks >= this.apu_bufferinterval) {
+            // Step ...
+            if (this.StepBuffer ()) {
+                this.bufferInd = 0;
+
+                this.CopyBufferQueues ();
+                this.PlayBuffer ();
+            }
+
+            this.bufferclocks -= this.apu_bufferinterval;
+        }
+    };
+
     this.StepBuffer = function () {
         var sample = this.GetSample ();
         this.bufferQueues [0] [this.bufferInd ++] = sample;
 
-        return (this.bufferInd >= this.bufferQueues.length); // True when buffer(s) are full !
+        return (this.bufferInd === this.bufferQueues.length); // True when buffer(s) are full !
     };
 
     this.GetSample = function () {
@@ -47,10 +62,8 @@ const Apu = function (nes) {
             * this.chan2_env_vol;
 
         // Channel 3
-        var sample3;
-        if (this.chan3_volshift === 4)
-            sample3 = 0;
-        else {
+        var sample3 = 0;
+        if (this.chan3_volshift !== 4) {
             sample3 = this.chan3GetSample ();
             sample3 = (sample3 + (sample3 - 0xf)) >> this.chan3_volshift;
             sample3 /= 0xf;
@@ -67,18 +80,10 @@ const Apu = function (nes) {
 
         source.buffer = this.buffer;
         source.connect (this.gainNode);
-        source.detune = safariFallback; // Safari doesn't support detune
+        source.detune = safariFallback; // Safari doesn't support detune (detune is read only >:3)
         source.detune.value = this.pitchShift;
 
         source.start ();
-    };
-
-    this.FlushBuffer = function () {
-        for (var i = 0; i < this.buffer.numberOfChannels; i ++) {
-            var channel = this.buffer.getChannelData (i);
-            for (var ii = 0; ii < channel.length; ii ++)
-                channel [ii] = 0;
-        }
     };
 
     this.CopyBufferQueues = function () {
@@ -91,7 +96,7 @@ const Apu = function (nes) {
     catch (e) {
         console.log ('audio not supported. using fallback !');
         this.bufferInd = 0;
-        this.StepBuffer = this.PlayBuffer = this.FlushBuffer = this.CopyBufferQueues =
+        this.StepBuffer = this.PlayBuffer = this.CopyBufferQueues =
             function () {};
     }
 
@@ -124,16 +129,27 @@ const Apu = function (nes) {
         this.chan2_env_clocks = 0;
         this.chan2_freq_timer = 0;
         this.chan2_duty_step = 0;
+        this.chan2Disable();
 
         // Reset channel 3
         this.chan3_freq_timer = 0;
         this.chan3_byte_step = 0;
         this.chan3_sample = 0;
+        this.chan3Disable();
 
         this.length_step = false;
     };
 
     this.length_step = false;
+
+    // =============== //   Frequency Constants //
+
+    this.squarefreqmul = 4;
+    this.wavefreqmul = 2;
+
+    // Set exterally (cpu.js)
+    this.apu_squarefreqmul = 0;
+    this.apu_wavefreqmul = 0;
 
     // =============== //   Square Channel 1 //
 
@@ -260,7 +276,7 @@ const Apu = function (nes) {
     this.chan1UpdateFreq = function (cycled) {
         this.chan1_freq_timer -= cycled;
         if (this.chan1_freq_timer <= 0) {
-            this.chan1_freq_timer += (2048 - this.chan1_raw_freq) * 4;
+            this.chan1_freq_timer += (2048 - this.chan1_raw_freq) * this.apu_squarefreqmul;
 
             this.chan1_duty_step ++;
             this.chan1_duty_step &= 7;
@@ -341,7 +357,7 @@ const Apu = function (nes) {
     this.chan2UpdateFreq = function (cycled) {
         this.chan2_freq_timer -= cycled;
         if (this.chan2_freq_timer <= 0) {
-            this.chan2_freq_timer += (2048 - this.chan2_raw_freq) * 4;
+            this.chan2_freq_timer += (2048 - this.chan2_raw_freq) * this.apu_squarefreqmul;
 
             this.chan2_duty_step ++;
             this.chan2_duty_step &= 7;
@@ -396,7 +412,7 @@ const Apu = function (nes) {
     this.chan3UpdateFreq = function (cycled) {
         this.chan3_freq_timer -= cycled;
         if (this.chan3_freq_timer <= 0) {
-            this.chan3_freq_timer += (2048 - this.chan3_raw_freq) * 2;
+            this.chan3_freq_timer += (2048 - this.chan3_raw_freq) * this.apu_wavefreqmul;
 
             this.chan3_sample_step ++;
             this.chan3_sample_step &= 0x1f;
@@ -407,17 +423,22 @@ const Apu = function (nes) {
         return (
             ((mem.ioreg [0x30 + (this.chan3_sample_step >> 1)]
             >> (!(this.chan3_sample_step & 1) * 4))
-            & 0xf) //>> this.chan3_volshift
+            & 0xf) // >> this.chan3_volshift
         );
     };
 
     // =============== //   Sound Controller //
 
-    this.soundclocks = 0;
+    // Constant timings
     this.soundinterval = nes.cpu.cyclespersec / 512; // 8192 cycles
-
-    this.bufferclocks = 0;
     this.bufferinterval = Math.ceil (nes.cpu.cyclespersec / this.buffer.sampleRate);
+
+    // The cycles the APU uses - again exterally set in cpu.js !
+    this.apu_soundinterval = 0;
+    this.apu_bufferinterval = 0;
+
+    this.soundclocks = 0;
+    this.bufferclocks = 0;
 
     this.soundOn = false;
 
@@ -432,7 +453,7 @@ const Apu = function (nes) {
 
         // Every 512 hz ...
         this.soundclocks += cycled;
-        if (this.soundclocks >= this.soundinterval) {
+        if (this.soundclocks >= this.apu_soundinterval) {
             // Channel 1
             if (this.chan1_on) {
                 this.chan1UpdateEnvelope ();
@@ -453,22 +474,11 @@ const Apu = function (nes) {
 
             this.length_step = !this.length_step;
 
-            this.soundclocks -= this.soundinterval;
+            this.soundclocks -= this.apu_soundinterval;
         }
 
         // Filling the buffer
-        this.bufferclocks += cycled;
-        if (this.bufferclocks >= this.bufferinterval) {
-            // Step ...
-            if (this.StepBuffer ()) {
-                this.bufferInd = 0;
-
-                this.CopyBufferQueues ();
-                this.PlayBuffer ();
-            }
-
-            this.bufferclocks -= this.bufferinterval;
-        }
+        this.updateBuffer (cycled);
     };
 
 };

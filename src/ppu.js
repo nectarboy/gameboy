@@ -1,9 +1,9 @@
 const Ppu = function (nes) {
 
-    var ppu = this;
+    const ppu = this;
 
-    var cpu = nes.cpu;
-    var mem = cpu.mem;
+    const cpu = nes.cpu;
+    const mem = cpu.mem;
 
     // =============== //   Basic Elements //
 
@@ -75,8 +75,8 @@ const Ppu = function (nes) {
 
     // =============== //   Screen Elements //
 
-    var gbwidth = 160; // 160
-    var gbheight = 144; // 144
+    const gbwidth = 160; // 160
+    const gbheight = 144; // 144
 
     this.pallete = {
         0: {
@@ -115,16 +115,16 @@ const Ppu = function (nes) {
     };
 
     this.PutPixel = function (x, y, color) {
-        var ind = (y * gbwidth + x);
-        var pind = ind * 4;
+        const ind = y * gbwidth + x;
+        var pind = 4 * ind;
 
-        var img = this.img.data;
-        var pal = this.pallete [color];
+        const img = this.img.data;
+        const pal = this.pallete [color];
 
-        img [pind] = pal.r;
-        img [pind + 1] = pal.g;
-        img [pind + 2] = pal.b;
-        img [pind + 3] = 0xff; // Full opacity
+        img [pind++] = pal.r;
+        img [pind++] = pal.g;
+        img [pind++] = pal.b;
+        img [pind]   = 0xff; // Full opacity
 
         return ind; // Don't let it go to waste <3
     };
@@ -135,7 +135,7 @@ const Ppu = function (nes) {
 
     // This has image interpolation - like a real GB :D
     this.RenderImgSmooth = function () {
-        var tmpCanvas = document.createElement ('canvas');
+        const tmpCanvas = document.createElement ('canvas');
         tmpCtx = tmpCanvas.getContext ('2d');
         tmpCtx.putImageData (this.img, 0, 0);
 
@@ -181,8 +181,6 @@ const Ppu = function (nes) {
         this.wilc = 0;
         this.winOnThisFrame = false;
 
-        this.sub_ly = 0;
-
         this.scrollx =
         this.scrolly = 0;
 
@@ -223,11 +221,17 @@ const Ppu = function (nes) {
 
     this.statsignal = false;
 
-    // Mode lengths in t-cycles
+    // Mode length constants in t-cycles
     this.oamlength = 80;
     this.drawlength = 172;
     this.hblanklength = 204;
     this.scanlinelength = 456;
+
+    // Actual cycles the PPU will use - set externally in cpu.js !
+    this.ppu_oamlength = 0;
+    this.ppu_drawlength = 0;
+    this.ppu_hblanklength = 0;
+    this.ppu_scanlinelength = 0;
 
     // =============== //   Sprites //
 
@@ -274,22 +278,20 @@ const Ppu = function (nes) {
         // Search sprite pool
         for (var i = 0; i < this.spritePool.length; i ++) {
 
-            var sprite = this.spritePool [i];
+            const sprite = this.spritePool [i];
 
-            var ly = this.ly + 16;
-            var spriteHeight = this.lcdc.tall_sprites ? 16 : 8;
+            const ly = this.ly + 16;
+            const spriteHeight = this.lcdc.tall_sprites ? 16 : 8;
 
             if (
                 sprite.x > 0                    // X > 0
                 && ly >= sprite.y               // LY + 16 >= Y
                 && ly < sprite.y + spriteHeight // LY + 16 < Y + height
-            )
-            {
-                var accepted = this.acceptedSprites.push (sprite);
 
-                if (accepted === this.maxSpritesScan)
-                    break;
-            }
+                // Push !...
+                && this.acceptedSprites.push (sprite) === this.maxSpritesScan
+            )
+                break; // ... then cut off buffer !
 
         }
 
@@ -315,31 +317,31 @@ const Ppu = function (nes) {
 
             // ---- OAM MODE 2 ---- //
             case 2: {
-                if (this.ppuclocks >= this.oamlength) {
+                if (this.ppuclocks >= this.ppu_oamlength) {
                     // Mode 2 is over ...
                     this.WriteMode (3);
                     this.SearchOam ();
 
-                    this.ppuclocks -= this.oamlength;
+                    this.ppuclocks -= this.ppu_oamlength;
                 }
             }
             // ---- DRAW MODE 3 ---- //
             case 3: {
                 // ... we're just imaginary plotting pixels dodododooo
 
-                if (this.ppuclocks >= this.drawlength) {
+                if (this.ppuclocks >= this.ppu_drawlength) {
                     // Mode 3 is over ...
                     this.WriteMode (0);
                     this.RenderScan (); // Finally render on hblank :D
 
-                    this.ppuclocks -= this.drawlength;
+                    this.ppuclocks -= this.ppu_drawlength;
                 }
             }
             // ---- H-BLANK MODE 0 ---- //
             case 0: {
                 // We're relaxin here ...
 
-                if (this.ppuclocks >= this.hblanklength) {
+                if (this.ppuclocks >= this.ppu_hblanklength) {
                     // Advance LY
                     this.ly ++;
 
@@ -356,12 +358,12 @@ const Ppu = function (nes) {
                     else
                         this.WriteMode (2); // Reset
 
-                    this.ppuclocks -= this.hblanklength;
+                    this.ppuclocks -= this.ppu_hblanklength;
                 }
             }
             // ---- V-BLANK MODE 1 ---- //
             case 1: {
-                if (this.ppuclocks >= this.scanlinelength) {
+                if (this.ppuclocks >= this.ppu_scanlinelength) {
                     // Advance LY
                     this.ly ++;
 
@@ -382,7 +384,7 @@ const Ppu = function (nes) {
 
                     mem.ioreg [0x44] = this.ly;
 
-                    this.ppuclocks -= this.scanlinelength;
+                    this.ppuclocks -= this.ppu_scanlinelength;
                 }
             }
 
@@ -402,7 +404,7 @@ const Ppu = function (nes) {
 
     // Update signal state
     this.UpdateStatSignal = function () {
-        var presignal = this.statsignal;
+        const presignal = this.statsignal;
 
         this.statsignal = 
             (this.stat.coin_irq_on && this.stat.coincidence)
@@ -430,61 +432,56 @@ const Ppu = function (nes) {
     this.scrollx = 0;
     this.scrolly = 0;
 
-    this.sub_ly = 0; // Used to decide which row of tile to draw
-
     this.RenderScan = function () {
         // Ready up some stuff
         this.lx = 0;
 
         var x = this.scrollx;
-        var y = (this.ly + this.scrolly) & 0xff;
-
         var wx = 0;
 
-        this.sub_ly = y & 7;
-        var sub_wy = (this.wilc & 7) << 1; // (wilc % 8 * 2) 2 bits per pixel
+        const y = (this.ly + this.scrolly) & 0xff;
+        const sub_ly = y & 7;
+        const sub_wy = (this.wilc & 7) << 1; // (wilc % 8 * 2) 2 bits per pixel
 
         // Calculate tile data and map bases
-        var tiledatabase = this.lcdc.signed_addressing ? 0x0000 : 0x1000; // 0x8000 - 0x9000
+        const tiledatabase = this.lcdc.signed_addressing ? 0x0000 : 0x1000; // 0x8000 - 0x9000
         // We don't actually use the correct values, cuz we're doing direct vram access :3
 
-        var bgmapbase = this.lcdc.bg_tilemap_alt ? 0x9c00 : 0x9800;
-        var winmapbase = this.lcdc.window_tilemap_alt ? 0x9c00 : 0x9800;
+        const bgmapbase = this.lcdc.bg_tilemap_alt ? 0x9c00 : 0x9800;
+        const winmapbase = this.lcdc.window_tilemap_alt ? 0x9c00 : 0x9800;
 
-        var mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
-        var winindy = winmapbase + ((this.wilc >> 3) * 32) - 0x8000; // Vram access fix
+        const mapindy = bgmapbase + (y >> 3) * 32; // (y / 8 * 32) Beginning of background tile map
+        const winindy = winmapbase + ((this.wilc >> 3) * 32) - 0x8000; // Vram access fix
 
         !this.winOnThisFrame && (this.winOnThisFrame = this.ly === this.wy);
-        var inWindowRn = this.lcdc.window_enabled && this.winOnThisFrame && this.wx < gbwidth;
+        const inWindowRn = (this.lcdc.window_enabled && this.winOnThisFrame && this.wx < gbwidth);
 
         while (this.lx < gbwidth) {
             // ----- WINDOW ----- //
             if (inWindowRn && this.lx >= this.wx) {
 
-                var mapind = winindy + (wx >> 3);    // (x / 8) Background tile map
-                var patind = mem.vram [mapind]; // Get tile index at map
+                const mapind = winindy + (wx >> 3); // (x / 8) Background tile map
+                var patind = mem.vram [mapind];     // Get tile index at map
 
                 // Calculate tile data address
-
                 if (!this.lcdc.signed_addressing)
-                    patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
+                    patind = patind << 24 >> 24;    // Complement tile index in 0x8800 mode
 
                 var addr =
                     tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
                     + (sub_wy);                     // (sub_ly * 2) Each line of a tile is 2 bytes
 
                 // Get tile line data
-                var lobyte = mem.vram [addr ++];
-                var hibyte = mem.vram [addr];
+                const lobyte = mem.vram [addr ++];
+                const hibyte = mem.vram [addr];
 
                 // Mix and draw current tile line pixel
-                var bitmask = 1 << ((wx ^ 7) & 7);
-                var nib =
+                const bitmask = 1 << ((wx ^ 7) & 7);
+                const nib =
                     ((hibyte & bitmask) ? 2 : 0)
                     | ((lobyte & bitmask) ? 1 : 0);
 
-                var pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
-
+                const pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
                 this.pxMap [pxind] = nib;
 
                 wx ++;
@@ -494,29 +491,28 @@ const Ppu = function (nes) {
             // ----- BACKGROUND ----- //
             else if (this.lcdc.bg_enabled) {
 
-                var mapind = mapindy + (x >> 3);    // (x / 8) Background tile map
-                var patind = mem.vram [mapind - 0x8000]; // Get tile index at map
+                const mapind = mapindy + (x >> 3);          // (x / 8) Background tile map
+                var patind = mem.vram [mapind - 0x8000];    // Get tile index at map
 
                 // Calculate tile data address
-
                 if (!this.lcdc.signed_addressing)
-                    patind = patind << 24 >> 24; // Complement tile index in 0x8800 mode
+                    patind = patind << 24 >> 24;    // Complement tile index in 0x8800 mode
 
                 var addr =
                     tiledatabase + (patind << 4)    // (tile index * 16) Each tile is 16 bytes
-                    + (this.sub_ly << 1);           // (sub_ly * 2) Each line of a tile is 2 bytes
+                    + (sub_ly << 1);                // (sub_ly * 2) Each line of a tile is 2 bytes
 
                 // Get tile line data
-                var lobyte = mem.vram [addr ++];
-                var hibyte = mem.vram [addr];
+                const lobyte = mem.vram [addr ++];
+                const hibyte = mem.vram [addr];
 
                 // Mix and draw current tile line pixel
-                var bitmask = 1 << ((x ^ 7) & 7);
-                var nib =
+                const bitmask = 1 << ((x ^ 7) & 7);
+                const nib =
                     ((hibyte & bitmask) ? 2 : 0)
                     | ((lobyte & bitmask) ? 1 : 0);
 
-                var pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
+                const pxind = this.PutPixel (this.lx, this.ly, this.palshades [nib]);
                 this.pxMap [pxind] = nib;
 
                 x ++;
@@ -551,20 +547,18 @@ const Ppu = function (nes) {
                     continue;
 
                 var tile = sprite.tile;
-                var height;
+                var height = 7;
 
                 // If dubby sprites on set tall tile lsb to 0
                 if (this.lcdc.tall_sprites) {
                     tile &= 0xfe;
                     height = 15;
                 }
-                else
-                    height = 7;
 
                 // Calculate address
                 var addr =
-                    // (0x8000 + [sprite tile index * 16])
-                    (tile << 4) // We dont actually add 0x8000 for more efficient vram reads
+                    (tile << 4)
+                    
                     // (sprite row * 2) we account for yflip as well
                     + (sprite.yflip
                         ? ((row ^ height) & height) << 1
@@ -591,11 +585,13 @@ const Ppu = function (nes) {
                     var sx = realX + ii;
                     if (
                         !nib // pixels are transparent
+
                         // Don't draw offscreen pixels
                         || sx >= gbwidth
                         || sx < 0
+
                         // BG priority thingy
-                        || (sprite.behind && this.pxMap [pxind_y + sx] > 0)
+                        || (sprite.behind && this.pxMap [pxind_y + sx])
                     )
                         continue;
 
