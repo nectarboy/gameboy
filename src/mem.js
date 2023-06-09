@@ -353,6 +353,94 @@ const Mem = function (nes, cpu) {
                 break;
             }
 
+            // ----- NOISE CHANEL 4 ----- //
+
+            // NR41 - Channel 4 length timer [write-only]
+            case 0x20: {
+                nes.apu.chan4_length = 64 - (val & 0b00111111);
+
+                this.ioreg [addr] = val | 0b00111111;
+                break;
+            }
+
+            // NR42 - Channel 4 volume & envelope
+            case 0x21: {
+                nes.apu.chan4_env_init = 
+                nes.apu.chan4_env_vol = ((val >> 4) / 15);
+                nes.apu.chan4_env_vol *= nes.apu.chan4_on;
+
+                nes.apu.chan4_env_inc = (val & 0b1000) ? true : false;
+                var sweep = nes.apu.chan4_env_sweep = val & 0b0111;
+
+                nes.apu.chan4_env_interval = 512 * (sweep/64);
+                nes.apu.chan4_env_on = sweep > 0;
+
+                this.ioreg [addr] = val;
+                break;
+            }
+
+            // NR43 - Channel 4 frequency & randomness
+            case 0x22: {
+                nes.apu.chan4_clock_shift = (val & 0xf0) >> 4;
+                nes.apu.chan4_clock_divider = val & 0x7;
+
+                if (nes.apu.chan4_clock_divider == 0) {
+                    nes.apu.chan4_clock_divider = 0.5;
+                }
+
+                var divisor;
+		        switch (val & 0b111) {
+		            case 0:
+		                divisor = 8;
+		                break;
+
+		            case 1:
+		                divisor = 16;
+		                break;
+
+		            case 2:
+		                divisor = 32;
+		                break;
+
+		            case 3:
+		                divisor = 48;
+		                break;
+
+		            case 4:
+		                divisor = 64;
+		                break;
+
+		            case 5:
+		                divisor = 80;
+		                break;
+
+		            case 6:
+		                divisor = 96;
+		                break;
+
+		            case 7:
+		                divisor = 112;
+		                break;
+		        }
+
+                nes.apu.chan4_raw_freq = divisor << nes.apu.chan4_clock_shift
+
+                this.ioreg [addr] = val;
+                break;
+            }
+
+            // NR44 - Channel 4 control
+            case 0x23: {
+                nes.apu.chan4_counter_select = (val & 0b01000000) ? true : false; 
+
+                // Trigger event
+                if (val & 0x80)
+                    nes.apu.chan4Trigger ();
+
+                this.ioreg [addr] = val | 0b10111111;
+                break;
+            }
+
             // Wave pattern samples
             case 0x30:
             case 0x31:
