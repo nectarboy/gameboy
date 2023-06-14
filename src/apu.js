@@ -56,8 +56,11 @@ const Apu = function (nes) {
             sample3 /= 0xf;
         }
 
+        // Channel 4
+        var sample4 = this.chan4_freq * this.chan4_env_vol;
+
         // Mix ...
-        return (sample1 + sample2 + sample3) / 3;
+        return (sample1 + sample2 + sample3 + sample4) / 4;
     };
 
     this.pitchShift = 0;
@@ -130,7 +133,16 @@ const Apu = function (nes) {
         this.chan3_byte_step = 0;
         this.chan3_sample = 0;
 
+        // Reset channel 4
+        this.chan4_env_interval = 0;
+        this.chan4_env_clocks = 0;
+        this.chan4_freq_timer = 0;
+        this.chan4_freq = 0;
+        this.lfsr = 0x7fff;
+        this.lfsr_width = false;
+
         this.length_step = false;
+
     };
 
     this.length_step = false;
@@ -411,6 +423,100 @@ const Apu = function (nes) {
         );
     };
 
+     // =============== //   Noise Channel 4 //
+
+    // Properties
+    this.chan4_on = false;
+
+    this.chan4Disable = function () {
+        this.chan4_on = false;
+        this.chan4_env_vol = 0; // Mute lol
+    };
+
+    this.chan4Trigger = function () {
+        this.chan4_on = true;
+
+        // Restart envelope
+        this.chan4_env_vol = this.chan4_env_init;
+        this.lfsr = 0x7fff;
+        this.lfsr_width = false;
+
+        // Restart length
+        if (this.chan4_length === 0)
+            this.chan4_length = 64; // Full
+    };
+
+    // Length
+    this.chan4_length = 0;
+
+    this.chan4UpdateLength = function () {
+        if (this.length_step && this.chan4_counter_select && -- this.chan4_length === 0)
+            this.chan4Disable ();
+    };
+
+    // Volume envelope
+    this.chan4_env_init = 0;
+    this.chan4_env_inc = false;
+    this.chan4_env_sweep = 0;
+    this.chan4_env_clocks = 0;
+
+    this.chan4_env_vol = 0;
+    this.chan4_env_on = false;
+    this.chan4_env_interval = 0;
+
+    this.chan4UpdateEnvelope = function () {
+        this.chan4_env_clocks ++;
+
+        if (this.chan4_env_clocks >= this.chan4_env_interval) {
+            this.chan4_env_clocks = 0;
+            if (!this.chan4_env_on)
+                return;
+
+            // Inc
+            if (this.chan4_env_inc) {
+                this.chan4_env_vol += 1/15;
+                if (this.chan4_env_vol > 1)
+                    this.chan4_env_vol = 1;
+            }
+            // Dec
+            else {
+                this.chan4_env_vol -= (1/15);
+                if (this.chan4_env_vol < 0)
+                    this.chan4_env_vol = 0;
+            }
+        }
+    };
+
+    // Frequency + settings ??
+    this.chan4_counter_select = false;
+    this.chan4_raw_freq = 0;
+
+    // Frequency timer
+    this.chan4_freq_timer = 0;
+    this.lfsr = 0x7fff;
+    this.lfsr_width = false;
+
+    this.nextBitLFSR = function () {
+        var x = ((this.lfsr & 1) ^ ((this.lfsr & 2) >> 1)) != 0;
+        this.lfsr = this.lfsr >> 1;
+        this.lfsr = this.lfsr | (x ? (1 << 14) : 0);
+        if (this.lfsr_width) {
+            this.lfsr = this.lfsr | (x ? (1 << 6) : 0);
+        }
+        if ((1 & ~this.lfsr) == 0)
+        	return -1;
+        return 1;
+    };
+
+    this.chan4UpdateFreq = function (cycled) {
+        this.chan4_freq_timer -= cycled;
+        if (this.chan4_freq_timer <= 0) {
+            this.chan4_freq_timer += this.chan4_raw_freq;
+
+            this.chan4_freq = this.nextBitLFSR();
+        }
+    };
+
     // =============== //   Sound Controller //
 
     this.soundclocks = 0;
@@ -429,6 +535,7 @@ const Apu = function (nes) {
         this.chan1UpdateFreq (cycled);
         this.chan2UpdateFreq (cycled);
         this.chan3UpdateFreq (cycled);
+        this.chan4UpdateFreq (cycled);
 
         // Every 512 hz ...
         this.soundclocks += cycled;
@@ -449,6 +556,12 @@ const Apu = function (nes) {
             // Channel 3
             if (this.chan3_on) {
                 this.chan3UpdateLength ();
+            }
+
+            // Channel 4
+            if (this.chan4_on) {
+                this.chan4UpdateEnvelope ();
+                this.chan4UpdateLength ();
             }
 
             this.length_step = !this.length_step;
