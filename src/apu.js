@@ -60,7 +60,7 @@ const Apu = function (nes) {
         var sample4 = this.chan4_freq * this.chan4_env_vol;
 
         // Mix ...
-        return (sample1 + sample2 + sample3 + sample4) / 4;
+        return (sample1 + sample2 + sample3 + sample4);
     };
 
     this.pitchShift = 0;
